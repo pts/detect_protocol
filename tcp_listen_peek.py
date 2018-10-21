@@ -26,50 +26,48 @@ import select
 import socket
 import sys
 
-# !!
-# EPOLLERR
-# EPOLLET
-# EPOLLHUP
-# EPOLLIN
-# EPOLLMSG
-# EPOLLONESHOT
-# EPOLLOUT
-# EPOLLPRI
-# EPOLLRDBAND
-# EPOLLRDNORM
-# EPOLLWRBAND
-# EPOLLWRNORM
+if (not callable(getattr(select, 'epoll', None)) or
+    getattr(select, 'EPOLLIN', None) != 1):
+  raise RuntimeError('Linux with epoll support is needed.')
+  
+if getattr(select, 'EPOLLDRHUP', None) is None:
+  # EPOLLRDHUP=0x2000 is only from Linux >= 2.6.17
+  # We can't use EPOLLHUP or EPOLLPRI instead, they are not activated on
+  # EOF.
+  select.EPOLLRDHUP = 0x2000
 
-# !! EPOLLRDHUP=0x2000 is only from Linux >= 2.6.17
-# !! how to pre-detect EOF (with or without data): use EPOLLRDHUP?
-# EPOLLHUP is not returned on read EOF (tried).
-select.EPOLLRDHUP = 0x2000
 
-ssock = socket.socket(socket.AF_INET, socket.SOCK_STREAM, 0)
-ssock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-ssock.bind(('127.0.0.1', 3344))
-ssock.listen(16)
-print >>sys.stderr, 'LISTEN', [ssock.getsockname()]
-while 1:
-  print >>sys.stderr, 'ACCEPT'
-  sock, addr = ssock.accept()
-  try:
-    print >>sys.stderr, 'ACCEPTED', sock.getsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF)  # 1062000
-    #sock.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, 10000)
-    ep = select.epoll(4)
-    # EOF also counts as EPOLLIN.
-    # ep.register(sock.fileno(), select.EPOLLET | select.EPOLLIN)
-    ep.register(sock.fileno(), select.EPOLLET | select.EPOLLIN | select.EPOLLRDHUP)
-    while 1:
-      print >>sys.stderr, 'POLL'
-      events = ep.poll()
-      print >>sys.stderr, 'EVENTS', events
-      if events:
-        # !! EPOLLERR and EPOLLHUP are automatic.
-        # !! Do we want to handle them? (at least not read this?)
-        # !! maximum buffer size should be: 942927 or 963019
-        pre = sock.recv(1 << 25, socket.MSG_PEEK)
-        #print >>sys.stderr, [len(pre), pre, len(pre)]
-        print >>sys.stderr, [len(pre)]
-  finally:
-    sock.close()
+def main(argv):
+  ssock = socket.socket(socket.AF_INET, socket.SOCK_STREAM, 0)
+  ssock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+  ssock.bind(('127.0.0.1', 55555))
+  ssock.listen(16)
+  print >>sys.stderr, 'LISTEN %s' % [ssock.getsockname()]
+  while 1:
+    print >>sys.stderr, 'ACCEPT'
+    sock, addr = ssock.accept()
+    try:
+      print >>sys.stderr, 'ACCEPTED %s' % sock.getsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF)  # 1062000
+      #sock.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, 10000)
+      ep = select.epoll(4)
+      # EOF also counts as EPOLLIN.
+      # ep.register(sock.fileno(), select.EPOLLET | select.EPOLLIN)
+      # If we don't specify EPOLLDRHUP here, EOF won't be detected.
+      ep.register(sock.fileno(), select.EPOLLET | select.EPOLLIN | select.EPOLLRDHUP | select.EPOLLPRI | select.EPOLLHUP)
+      while 1:
+        print >>sys.stderr, 'POLL'
+        events = ep.poll()
+        print >>sys.stderr, 'EVENTS %s' % events
+        if events:
+          # !! maximum buffer size should be: 942927 or 963019
+          pre = sock.recv(1 << 25, socket.MSG_PEEK)
+          #print >>sys.stderr, [len(pre), pre, len(pre)]
+          print >>sys.stderr, 'GOT %r' % [prev_size, len(pre), pre]
+          if events[0][1] & (select.EPOLLRDHUP | select.EPOLLHUP | select.EPOLLERR):
+            break  # EOF detected, using EPOLLRDHUP.
+    finally:
+      sock.close()
+
+
+if __name__ == '__main__':
+  sys.exit(main(sys.argv))
