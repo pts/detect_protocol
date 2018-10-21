@@ -3,6 +3,9 @@
 
 import struct
 
+PEEK_SIZE = 776  # Longest for 'ssl2-client'.
+"""Minimum len(data) for which detect_tcp_protocol doesn't return ''."""
+
 
 def detect_tcp_protocol(data):
   """Detects the network protocol by the first few bytes received.
@@ -65,10 +68,7 @@ def detect_tcp_protocol(data):
       return 'unknown'  # Variable-width field sizes don't match.
     if s < vf_size + 11:
       return ''
-    if data[3] == '\0':
-      return 'ssl2-client'
-    else:
-      return 'ssl23-client'
+    return ('ssl23-client', 'ssl2-client')[data[3] == '\0']
   elif c in 'ABCDEFGHIJKLMNOPQRSTUVWXYZ':  # 'http-client' or 'ssh2'.
     i = 1
     while i < s and i <= 16 and data[i] in 'ABCDEFGHIJKLMNOPQRSTUVWXYZ':
