@@ -10,6 +10,9 @@ def detect_tcp_protocol(data):
   Also does some (but not comprehensive) data error checking, and if a
   data error was found, returns 'unknown'.
 
+  Supported protocols (return values) are: 'tls-client', 'ssl2-client',
+  'ssl23-client', 'http-client', 'ssh2', 'smb-client'.
+
   Args:
     data: str or buffer containing the first few bytes received on an
         incoming TCP connection. Can be a prefix of a record.
