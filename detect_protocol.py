@@ -27,6 +27,13 @@ def detect_tcp_protocol(data):
     `data' is really too short.
   """
   # TODO(pts): Add detection of bittorrent and encrypted bittorrent.
+  # TODO(pts): Add detection of OpenVPN: https://github.com/yrutschle/sslh/blob/d6c714166a9769eb8896adc3b9f012b5549d85f4/example.cfg#L91 and https://github.com/yrutschle/sslh/blob/d6c714166a9769eb8896adc3b9f012b5549d85f4/probe.c#L153
+  # TODO(pts): Add detection of Wireguard.
+  # TODO(pts): Add detection of Tinc VPN: https://github.com/yrutschle/sslh/blob/d6c714166a9769eb8896adc3b9f012b5549d85f4/probe.c#L168
+  # TODO(pts): Add detection of Jabber: smarter than https://github.com/yrutschle/sslh/blob/d6c714166a9769eb8896adc3b9f012b5549d85f4/probe.c#L180
+  # TODO(pts): Should we be more strict with HTTP method names (i.e. have a whitelist)?
+  # TODO(pts): Add detection of ADB protocol: https://github.com/yrutschle/sslh/blob/d6c714166a9769eb8896adc3b9f012b5549d85f4/probe.c#L252
+  # TODO(pts): Add detection of SOCKS5 protocol: https://github.com/yrutschle/sslh/blob/d6c714166a9769eb8896adc3b9f012b5549d85f4/probe.c#L291
   if not data:
     return ''
   c, s = data[0], len(data)
