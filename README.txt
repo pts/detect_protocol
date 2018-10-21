@@ -5,6 +5,11 @@ Python) which can be used to detect what application-level protocol the TCP
 client is speaking, by peeking at the first few bytes it sends right after
 the connection.
 
+detect_protocol contains building blocks for
+running multiple TCP services on the same port, but it's not a readily
+working product yet. See the ``Similar projects'' list below for
+alternatives.
+
 Software components:
 
 * detect_protocol.py contains the detect_tcp_protocol function which can
