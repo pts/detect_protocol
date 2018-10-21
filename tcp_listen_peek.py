@@ -1,4 +1,5 @@
 #! /usr/bin/python
+# by pts@fazekas.hu at Sun Oct 21 15:20:42 CEST 2018
 #
 # Related analysis: https://stackoverflow.com/a/8868593/97248
 #
@@ -29,12 +30,52 @@ import sys
 if (not callable(getattr(select, 'epoll', None)) or
     getattr(select, 'EPOLLIN', None) != 1):
   raise RuntimeError('Linux with epoll support is needed.')
-  
+
 if getattr(select, 'EPOLLDRHUP', None) is None:
   # EPOLLRDHUP=0x2000 is only from Linux >= 2.6.17
   # We can't use EPOLLHUP or EPOLLPRI instead, they are not activated on
   # EOF.
   select.EPOLLRDHUP = 0x2000
+
+
+def handle_sock(sock, peek_size):
+  try:
+    eofmask = select.EPOLLRDHUP | select.EPOLLHUP | select.EPOLLERR
+    peek_size2 = sock.getsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF)
+    print >>sys.stderr, 'ACCEPTED %s' % peek_size2  # 1062000 on Linux 3.13.
+    if peek_size2 < peek_size:
+      # Linux 3.13 seems to ignore this call.
+      sock.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, peek_size)
+      peek_size2 = sock.getsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF)
+      if peek_size2 < peek_size:
+        raise socket.error('Peek size too large.')
+    print >>sys.stderr, 'ACCEPTED %s' % peek_size2  # 1062000 on Linux 3.13.
+    ep = select.epoll(4)
+    # EOF also counts as EPOLLIN, but in some cases of receiving an
+    # EPOLLIN it's impossible to tell (withlout also asking for
+    # EPOLLDRHUP) if there was an EOF: e.g. when we need a lot of time to
+    # process the previous bytes, and in the meantime more bytes arrive
+    # and maybe theres is also an EOF, so when call ep.poll() we'll notice
+    # the extra bytes, but we won't know if there is an EOF.
+    ep.register(sock.fileno(),
+                select.EPOLLET | select.EPOLLIN | select.EPOLLRDHUP)
+    while 1:
+      print >>sys.stderr, 'POLL'
+      events = ep.poll()
+      print >>sys.stderr, 'EVENTS %s' % events
+      # There is only a single event per fd, we counld just assert it.
+      got_rdhup = sum(1 for event in events if event[1] & eofmask)
+      if events:
+        pre = sock.recv(peek_size, socket.MSG_PEEK)
+        print >>sys.stderr, 'GOT %r' % [len(pre), pre]
+        if len(pre) >= peek_size:
+          print >>sys.stderr, 'PEEK_TOO_LONG'
+          break
+        if got_rdhup:
+          print >>sys.stderr, 'EOF'
+          break  # EOF detected, using EPOLLRDHUP.
+  finally:
+    sock.close()
 
 
 def main(argv):
@@ -43,30 +84,12 @@ def main(argv):
   ssock.bind(('127.0.0.1', 55555))
   ssock.listen(16)
   print >>sys.stderr, 'LISTEN %s' % [ssock.getsockname()]
+  peek_size = 10
   while 1:
     print >>sys.stderr, 'ACCEPT'
     sock, addr = ssock.accept()
-    try:
-      print >>sys.stderr, 'ACCEPTED %s' % sock.getsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF)  # 1062000
-      #sock.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, 10000)
-      ep = select.epoll(4)
-      # EOF also counts as EPOLLIN.
-      # ep.register(sock.fileno(), select.EPOLLET | select.EPOLLIN)
-      # If we don't specify EPOLLDRHUP here, EOF won't be detected.
-      ep.register(sock.fileno(), select.EPOLLET | select.EPOLLIN | select.EPOLLRDHUP | select.EPOLLPRI | select.EPOLLHUP)
-      while 1:
-        print >>sys.stderr, 'POLL'
-        events = ep.poll()
-        print >>sys.stderr, 'EVENTS %s' % events
-        if events:
-          # !! maximum buffer size should be: 942927 or 963019
-          pre = sock.recv(1 << 25, socket.MSG_PEEK)
-          #print >>sys.stderr, [len(pre), pre, len(pre)]
-          print >>sys.stderr, 'GOT %r' % [prev_size, len(pre), pre]
-          if events[0][1] & (select.EPOLLRDHUP | select.EPOLLHUP | select.EPOLLERR):
-            break  # EOF detected, using EPOLLRDHUP.
-    finally:
-      sock.close()
+    handle_sock(sock, peek_size)
+    del sock  # Save memory.
 
 
 if __name__ == '__main__':
