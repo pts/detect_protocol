@@ -14,7 +14,8 @@ Software components:
 
 * detect_protocol.py contains the detect_tcp_protocol function which can
   detect a few TCP client protocols (e.g. HTTP, TLS, SSL, SSH and SMB
-  (Samba, CIFS)). This file also has unit tests in detect_protocol_test.py.
+  (Samba, CIFS), X11). This file also has unit tests in
+  detect_protocol_test.py.
 
 * protocol_test.py contains some documentation and sample code explaining
   how and why the logic in detect_tcp_protocol works for the supported

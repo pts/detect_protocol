@@ -76,13 +76,29 @@ def detect_tcp_protocol(data):
     if s < vf_size + 11:
       return ''
     return ('ssl23-client', 'ssl2-client')[data[3] == '\0']
-  elif c in 'ABCDEFGHIJKLMNOPQRSTUVWXYZ':  # 'http-client' or 'ssh2'.
+  elif c == 'l':  # 'x11-client' LSB-first.
+    # ``Connection Setup'' in
+    # https://www.x.org/releases/X11R7.5/doc/x11proto/proto.pdf
+    if s < 6 and 'l\0\x0b\0\0\0'.startswith(data):
+      return ''
+    elif s >= 6 and data.startswith('l\0\x0b\0\0\0'):
+      return 'x11-client'
+    else:
+      return 'unknown'
+  elif c in 'ABCDEFGHIJKLMNOPQRSTUVWXYZ':  # 'http-client' or 'ssh2' or 'x11-client' MSB-first.
     i = 1
     while i < s and i <= 16 and data[i] in 'ABCDEFGHIJKLMNOPQRSTUVWXYZ':
       i += 1
     if i == s:  # A ' ' or '-' is needed.
       return ''
-    if i == 3 and data.startswith('SSH-'):  # `i == 3' is implied.
+    elif i == 1 and data.startswith('B\0'):
+      if s < 6 and 'B\0\0\x0b\0\0'.startswith(data):
+        return ''
+      elif s >= 6 and data.startswith('B\0\0\x0b\0\0'):
+        return 'x11-client'
+      else:
+        return 'unknown'
+    elif i == 3 and data.startswith('SSH-'):  # `i == 3' is implied.
       if s < 9:
         if 'SSH-2.0-'.startswith(data):
           return ''
@@ -90,9 +106,10 @@ def detect_tcp_protocol(data):
       if data.startswith('SSH-2.0-'):
         return 'ssh2'  # Both SSH client and server send this prefix.
       return 'unknown'
-    if i < 3 or i > 16:  # HTTP method name too long (arbitrary limit).
+    elif i < 3 or i > 16:  # HTTP method name too long (arbitrary limit).
       return 'unknown'
-    return 'http-client'
+    else:
+      return 'http-client'
   elif c == '\0':  # 'smb-client'.
     if ((s > 1 and data[1] != '\0') or
         # 'r' is SMB_COM_NEGOTIATE == 0x72.
