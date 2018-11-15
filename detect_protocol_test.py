@@ -40,6 +40,9 @@ X11_CLIENT_DATAS = (
 RDP_CLIENT_DATAS = (
     '\x03\x00\x00\x29\x24\xe0',
 )
+SOCKS5_CLIENT_DATAS = (
+    '\x05\x04\x06\x07\x09\x08',
+)
 
 
 def run_tests():
@@ -76,6 +79,10 @@ def run_tests():
     for i in xrange(6):
       assert detect_tcp_protocol(data[:i]) == ''
     assert detect_tcp_protocol(data) == 'rdp-client'
+  for data in SOCKS5_CLIENT_DATAS:
+    for i in xrange(6):
+      assert detect_tcp_protocol(data[:i]) == '', [data[:i], detect_tcp_protocol(data[:i])]
+    assert detect_tcp_protocol(data) == 'socks5-client'
 
 
 if __name__ == '__main__':

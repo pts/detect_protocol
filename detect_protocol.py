@@ -1,5 +1,8 @@
 #! /usr/bin/python
 # by pts@fazekas.hu at Sun Oct 21 09:16:49 CEST 2018
+#
+# TODO(pts): Add support for openvpn, tinc, adb, socks5
+#            based on https://github.com/yrutschle/sslh/blob/master/probe.c
 
 import struct
 
@@ -123,6 +126,19 @@ def detect_tcp_protocol(data):
       return 'unknown'
     else:
       return 'rdp-client'
+  elif c == '\x05':  # 'socks5-client':
+    # Based on
+    # https://github.com/yrutschle/sslh/blob/8ec9799ca03e42a1cd38fd777a325751239067bc/probe.c#L288
+    # and https://www.iana.org/assignments/socks-methods/socks-methods.xhtml
+    if s < 2 or s < 2 + ord(data[1]):
+      return ''
+    elif (
+        # Invalid number of authentication methods.
+        data[1] == '\0' or ord(data[1]) > 10 or
+        [1 for i in xrange(2, 2 + ord(data[1])) if ord(data[i]) > 9]):
+      return 'unknown'
+    else:
+      return 'socks5-client'
   elif c == '\0':  # 'smb-client'.
     if ((s > 1 and data[1] != '\0') or
         # 'r' is SMB_COM_NEGOTIATE == 0x72.
