@@ -37,6 +37,9 @@ X11_CLIENT_DATAS = (
     '\x6c\x00\x0b\x00\x00\x00',
     '\x42\x00\x00\x0b\x00\x00',
 )
+RDP_CLIENT_DATAS = (
+    '\x03\x00\x00\x29\x24\xe0',
+)
 
 
 def run_tests():
@@ -67,8 +70,12 @@ def run_tests():
     assert detect_tcp_protocol(buffer(data)) == 'ssl23-client'
   for data in X11_CLIENT_DATAS:
     for i in xrange(6):
-      assert detect_tcp_protocol(data[:i]) == '', [data[:i], detect_tcp_protocol(data[:i])]
+      assert detect_tcp_protocol(data[:i]) == ''
     assert detect_tcp_protocol(data) == 'x11-client'
+  for data in RDP_CLIENT_DATAS:
+    for i in xrange(6):
+      assert detect_tcp_protocol(data[:i]) == ''
+    assert detect_tcp_protocol(data) == 'rdp-client'
 
 
 if __name__ == '__main__':

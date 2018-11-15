@@ -110,6 +110,19 @@ def detect_tcp_protocol(data):
       return 'unknown'
     else:
       return 'http-client'
+  elif c == '\x03':  # 'rdp-client'.
+    # Based on xrdp-0.9.3.1/libxrdp/xrdp_iso.c.
+    if s < 6:
+      return ''
+    elif (data[1] != '\0' or data[2] != '\0' or data[3] < '\x0b' or
+          ord(data[3]) != ord(data[4]) + 5 or data[5] != '\xe0'):
+      # Actually data[1] may be anything, data[2] may be '\1', clients other
+      # than rdesktop may send such values.
+      #
+      # '\xe0' is ISO_PDU_CR (X.224 connection request).
+      return 'unknown'
+    else:
+      return 'rdp-client'
   elif c == '\0':  # 'smb-client'.
     if ((s > 1 and data[1] != '\0') or
         # 'r' is SMB_COM_NEGOTIATE == 0x72.

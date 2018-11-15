@@ -27,6 +27,13 @@ Software components:
   non-consuming part is Linux-specific, and it's implemented by recv(...,
   MSG_PEEK) and epoll_ctl(..., EPOLLET | EPOLLIN | EPOLLRDHUP).
 
+The clients of these protocols are impossible to detect because the client
+expects the server to send some bytes first:
+
+* SMTP
+* FTP
+* VNC
+
 Similar projects:
 
 * https://github.com/yrutschle/sslh written in C. It doesn't peek, but
