@@ -43,6 +43,11 @@ RDP_CLIENT_DATAS = (
 SOCKS5_CLIENT_DATAS = (
     '\x05\x04\x06\x07\x09\x08',
 )
+UWSGI_CLIENT_DATAS = (
+    '\x00\x0a\x00\x00\x06\x00HTTP_X',
+    '\x06\x0a\x00\x00\x06\x00UWSGI_',
+    '\x07\x03\x01\x00\xff\x00UWSGI_',
+)
 
 
 def run_tests():
@@ -81,8 +86,12 @@ def run_tests():
     assert detect_tcp_protocol(data) == 'rdp-client'
   for data in SOCKS5_CLIENT_DATAS:
     for i in xrange(6):
-      assert detect_tcp_protocol(data[:i]) == '', [data[:i], detect_tcp_protocol(data[:i])]
+      assert detect_tcp_protocol(data[:i]) == ''
     assert detect_tcp_protocol(data) == 'socks5-client'
+  for data in UWSGI_CLIENT_DATAS:
+    for i in xrange(12):
+      assert detect_tcp_protocol(data[:i]) == ''
+    assert detect_tcp_protocol(data) == 'uwsgi-client'
 
 
 if __name__ == '__main__':

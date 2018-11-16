@@ -3,11 +3,44 @@
 #
 # TODO(pts): Add support for openvpn, tinc, adb, socks5
 #            based on https://github.com/yrutschle/sslh/blob/master/probe.c
+# TODO(pts): Add FastCGI and SCGI.
+#
 
 import struct
 
 PEEK_SIZE = 776  # Longest for 'ssl2-client'.
 """Minimum len(data) for which detect_tcp_protocol doesn't return ''."""
+
+
+def _detect_uwsgi_client_protocol(data):
+  """Helper function to detect 'uwsgi-client' only."""
+  # Based on https://uwsgi-docs.readthedocs.io/en/latest/Protocol.html
+  if not data:
+    return ''
+  s = len(data)
+  if ((s and data[0] not in '\x00\x06\x07\x08\x09\x0e') or
+      (s > 3 and data[3] != '\0') or
+      (s > 5 and data[5] != '\0') or
+      (6 < s <= 11 and not 'HTTP_'.startswith(data[6 : 11]) and
+                       not 'UWSGI'.startswith(data[6 : 11])) or
+      (s >= 12 and 'HTTP_' != data[6 : 11] and
+               not 'UWSGI_'.startswith(data[6 : 12]))
+     ):
+    # data[0] == '\x05' would be PSGI, but that conflicts with
+    # 'socks5-client', e.g. if data == '\x05\x01\x01\x00\x20\x00HTTP_'. We
+    # prioritize 'socks5-client' here.
+    return 'unknown'
+  if s >= 3:
+    data_size, = struct.unpack('<H', data[1 : 3])
+    if data_size < 8:
+      return 'unknown'
+  if s >= 6:
+    key_size, = struct.unpack('<H', data[4 : 6])
+    if key_size < 6 or data_size < key_size + 4:
+      return 'unknown'
+  if s < 12:
+    return ''
+  return 'uwsgi-client'
 
 
 def detect_tcp_protocol(data):
@@ -126,7 +159,7 @@ def detect_tcp_protocol(data):
       return 'unknown'
     else:
       return 'rdp-client'
-  elif c == '\x05':  # 'socks5-client':
+  elif c == '\x05':  # 'socks5-client'.
     # Based on
     # https://github.com/yrutschle/sslh/blob/8ec9799ca03e42a1cd38fd777a325751239067bc/probe.c#L288
     # and https://www.iana.org/assignments/socks-methods/socks-methods.xhtml
@@ -140,6 +173,11 @@ def detect_tcp_protocol(data):
     else:
       return 'socks5-client'
   elif c == '\0':  # 'smb-client'.
+    # No real conflict, because data[5] is 'S' and 'smb-client' and '\0' in
+    # 'uwsgi'-client.
+    protocol = _detect_uwsgi_client_protocol(data)
+    if protocol != 'unknown':
+      return protocol
     if ((s > 1 and data[1] != '\0') or
         # 'r' is SMB_COM_NEGOTIATE == 0x72.
         # '\0\0\0\0' is SMB_ERROR.
@@ -158,5 +196,7 @@ def detect_tcp_protocol(data):
     if s < 41:
       return ''
     return 'smb-client'
+  elif c in '\x06\x07\x08\x09\x0e':
+    return _detect_uwsgi_client_protocol(data)
   else:
     return 'unknown'
