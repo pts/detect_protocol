@@ -1,7 +1,9 @@
 #! /usr/bin/python
 # by pts@fazekas.hu at Sun Oct 21 09:16:49 CEST 2018
 #
-# TODO(pts): Add FastCGI and SCGI.
+# TODO(pts): Add detection of FastCGI.
+# TODO(pts): Add detection of SCGI.
+# TODO(pts): Add detection of bittorrent and encrypted bittorrent.
 #
 
 import struct
@@ -75,7 +77,9 @@ def detect_tcp_protocol(data):
   data error was found, returns 'unknown'.
 
   Supported protocols (return values) are: 'tls-client', 'ssl2-client',
-  'ssl23-client', 'http-client', 'ssh2', 'smb-client'.
+  'ssl23-client', 'http-client', 'ssh2', 'smb-client', 'x11-client',
+  'rdp-client', 'socks5-client', 'uwsgi-client', 'tinc-client', 'xmpp',
+  'adb-client'.
 
   Args:
     data: str or buffer containing the first few bytes received on an
@@ -87,14 +91,6 @@ def detect_tcp_protocol(data):
     Tries very hard to use all information in `data', and returns '' only if
     `data' is really too short.
   """
-  # TODO(pts): Add detection of bittorrent and encrypted bittorrent.
-  # TODO(pts): Add detection of OpenVPN: https://github.com/yrutschle/sslh/blob/d6c714166a9769eb8896adc3b9f012b5549d85f4/example.cfg#L91 and https://github.com/yrutschle/sslh/blob/d6c714166a9769eb8896adc3b9f012b5549d85f4/probe.c#L153
-  # TODO(pts): Add detection of Wireguard.
-  # TODO(pts): Add detection of Tinc VPN: https://github.com/yrutschle/sslh/blob/d6c714166a9769eb8896adc3b9f012b5549d85f4/probe.c#L168
-  # TODO(pts): Add detection of Jabber: smarter than https://github.com/yrutschle/sslh/blob/d6c714166a9769eb8896adc3b9f012b5549d85f4/probe.c#L180
-  # TODO(pts): Should we be more strict with HTTP method names (i.e. have a whitelist)?
-  # TODO(pts): Add detection of ADB protocol: https://github.com/yrutschle/sslh/blob/d6c714166a9769eb8896adc3b9f012b5549d85f4/probe.c#L252
-  # TODO(pts): Add detection of SOCKS5 protocol: https://github.com/yrutschle/sslh/blob/d6c714166a9769eb8896adc3b9f012b5549d85f4/probe.c#L291
   if not data:
     return ''
   c, s = data[0], len(data)
@@ -174,6 +170,8 @@ def detect_tcp_protocol(data):
     elif i < 3 or i > 16:  # HTTP method name too long (arbitrary limit).
       return 'unknown'
     else:
+      # TODO(pts): Should we be more strict with HTTP method names (i.e.
+      #            have a whitelist)?
       return 'http-client'
   elif c == '\x03':  # 'rdp-client'.
     # Based on xrdp-0.9.3.1/libxrdp/xrdp_iso.c.
