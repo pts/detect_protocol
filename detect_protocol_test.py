@@ -51,7 +51,10 @@ UWSGI_CLIENT_DATAS = (
 TINC_CLIENT_DATAS = (
     '0 ',
 )
-
+XMPP_DATAS = (
+    '<?xml version=\'1.0\'?>\r\n<stream:stream\t',
+    '<?xml version=\'1.0\'?>\r\n<stream:stream\n  version',
+)
 
 def run_tests():
   detect_tcp_protocol = detect_protocol.detect_tcp_protocol
@@ -99,6 +102,12 @@ def run_tests():
     for i in xrange(2):
       assert detect_tcp_protocol(data[:i]) == ''
     assert detect_tcp_protocol(data) == 'tinc-client'
+  for data in XMPP_DATAS:
+    j = data.find(':stream') + 8
+    for i in xrange(j):
+      assert detect_tcp_protocol(data[:i]) == ''
+    assert detect_tcp_protocol(data[:j]) == 'xmpp'
+    assert detect_tcp_protocol(data) == 'xmpp'
 
 
 if __name__ == '__main__':

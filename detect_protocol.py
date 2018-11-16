@@ -205,5 +205,29 @@ def detect_tcp_protocol(data):
       return 'unknown'
     else:
       return 'tinc-client'
+  elif c == '<':  # 'xmpp' (Jabber).
+    # Based on https://xmpp.org/rfcs/rfc6120.html
+    if (not '<?xml'.startswith(data[:5]) or
+        (s > 5 and not data[5].isspace() and data[5] != '?')):
+      return 'unknown'
+    data = data[:128]
+    i = data.find('>', 6)
+    if i < 0:
+      return ''
+    if data[i - 1] != '?':
+      return 'unknown'
+    i += 1
+    while i < s and data[i].isspace():
+      i += 1
+    if i == s:
+      return ''
+    if not '<stream:stream'.startswith(data[i : i + 14]):
+      return 'unknown'
+    i += 14
+    if i >= s:
+      return ''
+    if not data[i].isspace():
+      return 'unknown'
+    return 'xmpp'
   else:
     return 'unknown'
