@@ -44,7 +44,8 @@ The clients of these protocols can't be detected reliably:
 Similar projects:
 
 * https://github.com/yrutschle/sslh written in C. It doesn't peek, but
-  consumes the input bytes.
+  consumes the input bytes. It can also match on alpn_protocols and
+  sni_hostnames for tls-client.
 * https://github.com/jamescun/switcher
 * https://github.com/soheilhy/cmux
 * https://github.com/stealth/sshttp

@@ -225,9 +225,13 @@ def detect_tcp_protocol(data):
       return 'socks5-client'
   elif c == '\0':  # 'smb-client' or 'uwsgi-client' or 'adb-client'.
     # No real conflict, because:
+    #
     # * If data[5] == 'S', then it's 'smb-client'.
     # * If data[5] == '\0' and data[1 : 3] == '\0\0', then it's 'adb-client'.
-    # * if data[5] == '\0' and data[1 : 3] != '\0\0', then it's 'uswgi-client'.
+    # * if data[5] == '\0' and data[1 : 3] != '\0\0', then it's 'uwsgi-client'.
+    #
+    # We wouldn't be able to match openvpn-client though (/^\x00[\x0D-\xFF]/),
+    # because it conflicts with 'uwsgi-client'.
     protocol = _detect_uwsgi_client_protocol(data)
     if protocol != 'unknown':
       return protocol
