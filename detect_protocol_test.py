@@ -62,6 +62,7 @@ ADB_CLIENT_DATAS = (
 
 
 def detect_tcp_protocol(data):
+  assert len(data) <= detect_protocol.PEEK_SIZE
   protocol = detect_protocol.detect_tcp_protocol(data)
   assert (protocol in detect_protocol.SUPPORTED_PROTOCOLS or
           protocol in ('', 'unknown')), 'Unknown protocol: %r' % (protocol,)

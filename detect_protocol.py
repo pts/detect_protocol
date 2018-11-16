@@ -142,6 +142,7 @@ def detect_tcp_protocol(data):
     vf_size = ord(data[6]) + ord(data[8]) + ord(data[10])
     if ord(data[0]) << 8 | ord(data[1]) != vf_size + 0x8009:
       return 'unknown'  # Variable-width field sizes don't match.
+    # TODO(pts): Make PEEK_SIZE smaller, don't read the entire vf_size.
     if s < vf_size + 11:
       return ''
     return ('ssl23-client', 'ssl2-client')[data[3] == '\0']
