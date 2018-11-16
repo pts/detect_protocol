@@ -73,13 +73,15 @@ def run_tests():
   assert '' not in detect_protocol.SUPPORTED_PROTOCOLS
   assert 'unknown' not in detect_protocol.SUPPORTED_PROTOCOLS
   for data in TLS_CLIENT_DATAS:
-    for i in xrange(52):
+    data = data[:52]
+    for i in xrange(len(data)):
       assert detect_tcp_protocol(data[:i]) == ''
     assert len(data) < 52 or detect_tcp_protocol(data) == 'tls-client'
   for data in SMB_CLIENT_DATAS:
     for i in xrange(41):
       assert detect_tcp_protocol(data[:i]) == ''
-    assert detect_tcp_protocol(data) == 'smb-client'
+    assert detect_tcp_protocol(data[:41]) == 'smb-client'
+    assert detect_tcp_protocol(data[:64]) == 'smb-client'
   for data in SSH2_DATAS:
     for i in xrange(9):
       assert detect_tcp_protocol(data[:i]) == ''
@@ -89,13 +91,13 @@ def run_tests():
       assert detect_tcp_protocol(data[:i]) == ''
     assert detect_tcp_protocol(data) == 'http-client'
   for data in SSL2_CLIENT_DATAS:
-    for i in xrange(len(data)):
+    for i in xrange(min(len(data), 64)):
       assert detect_tcp_protocol(data[:i]) == ''
     assert detect_tcp_protocol(data) == 'ssl2-client'
   for data in SSL23_CLIENT_DATAS:
-    for i in xrange(len(data)):
+    for i in xrange(min(len(data), 64)):
       assert detect_tcp_protocol(data[:i]) == ''
-    assert detect_tcp_protocol(buffer(data)) == 'ssl23-client'
+    assert detect_tcp_protocol(data[:64]) == 'ssl23-client'
   for data in X11_CLIENT_DATAS:
     for i in xrange(6):
       assert detect_tcp_protocol(data[:i]) == ''

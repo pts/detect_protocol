@@ -8,7 +8,7 @@
 
 import struct
 
-PEEK_SIZE = 776  # Longest for 'ssl2-client'.
+PEEK_SIZE = 64
 """Minimum len(data) for which detect_tcp_protocol doesn't return ''."""
 
 SUPPORTED_PROTOCOLS = (
@@ -143,7 +143,7 @@ def detect_tcp_protocol(data):
     if ord(data[0]) << 8 | ord(data[1]) != vf_size + 0x8009:
       return 'unknown'  # Variable-width field sizes don't match.
     # TODO(pts): Make PEEK_SIZE smaller, don't read the entire vf_size.
-    if s < vf_size + 11:
+    if s < min(64, vf_size + 11):  # Keep small buffer (64 bytes).
       return ''
     return ('ssl23-client', 'ssl2-client')[data[3] == '\0']
   elif c == 'l':  # 'x11-client' LSB-first.
@@ -255,7 +255,8 @@ def detect_tcp_protocol(data):
     if (not '<?xml'.startswith(data[:5]) or
         (s > 5 and not data[5].isspace() and data[5] != '?')):
       return 'unknown'
-    data = data[:128]
+    # TODO(pts): Do we need 128? Then also update PEEK_SIZE.
+    data = data[:64]  # Also converts to string.
     i = data.find('>', 6)
     if i < 0:
       return ''
