@@ -38,8 +38,8 @@ def _detect_uwsgi_client_protocol(data):
   if ((s and data[0] not in '\x00\x06\x07\x08\x09\x0e') or
       (s > 3 and data[3] != '\0') or
       (s > 5 and data[5] != '\0') or
-      (6 < s <= 11 and not 'HTTP_'.startswith(data[6 : 11]) and
-                       not 'UWSGI'.startswith(data[6 : 11])) or
+      (6 < s <= 11 and not 'HTTP_'.startswith(buffer(data, 6, 5)) and
+                       not 'UWSGI'.startswith(buffer(data, 6, 5))) or
       (s >= 12 and 'HTTP_' != data[6 : 11] and
                not 'UWSGI_'.startswith(data[6 : 12]))
      ):
@@ -65,12 +65,12 @@ def _detect_adb_cnxn(data, i):
   # Based on
   # https://android.googlesource.com/platform/system/adb/+/master/protocol.txt
   s = len(data)
-  if ((s > i and not 'CNXN'.startswith(data[i : i + 4])) or
+  if ((s > i and not 'CNXN'.startswith(buffer(data, i, 4))) or
       (s > i + 12 and data[i + 12] < '\x06') or
-      (s > i + 13 and not '\0\0\0'.startswith(data[i + 13 : i + 16])) or
+      (s > i + 13 and not '\0\0\0'.startswith(buffer(data, i + 13, 3))) or
       (s > i + 20 and
-       not '\xbc\xb1\xa7\xb1'.startswith(data[i + 20 : i + 24])) or
-      (s > i + 24 and not 'host:'.startswith(data[i + 24 : i + 29]))):
+       not '\xbc\xb1\xa7\xb1'.startswith(buffer(data, i + 20, 4))) or
+      (s > i + 24 and not 'host:'.startswith(buffer(data, i + 24, 5)))):
     return 'unknown'
   if s < i + 29:
     return ''
@@ -151,7 +151,7 @@ def detect_tcp_protocol(data):
     # https://www.x.org/releases/X11R7.5/doc/x11proto/proto.pdf
     if s < 6 and 'l\0\x0b\0\0\0'.startswith(data):
       return ''
-    elif s >= 6 and data.startswith('l\0\x0b\0\0\0'):
+    elif s >= 6 and data[:6] == 'l\0\x0b\0\0\0':
       return 'x11-client'
     else:
       return 'unknown'
@@ -165,19 +165,19 @@ def detect_tcp_protocol(data):
       i += 1
     if i == s:  # A ' ' or '-' is needed.
       return ''
-    elif i == 1 and data.startswith('B\0'):
+    elif i == 1 and data[:2] == 'B\0':
       if s < 6 and 'B\0\0\x0b\0\0'.startswith(data):
         return ''
-      elif s >= 6 and data.startswith('B\0\0\x0b\0\0'):
+      elif s >= 6 and data[:6] == 'B\0\0\x0b\0\0':
         return 'x11-client'
       else:
         return 'unknown'
-    elif i == 3 and data.startswith('SSH-'):  # `i == 3' is implied.
+    elif i == 3 and data[:4] == 'SSH-':
       if s < 9:
         if 'SSH-2.0-'.startswith(data):
           return ''
         return 'unknown'
-      if data.startswith('SSH-2.0-'):
+      if data[:8] == 'SSH-2.0-':
         return 'ssh2'  # Both SSH client and server send this prefix.
       return 'unknown'
     elif i < 3 or i > 16:  # HTTP method name too long (arbitrary limit).
@@ -226,7 +226,8 @@ def detect_tcp_protocol(data):
     if ((s > 1 and data[1] != '\0') or
         # 'r' is SMB_COM_NEGOTIATE == 0x72.
         # '\0\0\0\0' is SMB_ERROR.
-        (s > 4 and s < 13 and not '\xffSMBr\0\0\0\0'.startswith(data[4 : 13])) or
+        (s > 4 and s < 13 and
+         not '\xffSMBr\0\0\0\0'.startswith(buffer(data, 4, 9))) or
         (s >= 13 and data[4 : 13] != '\xffSMBr\0\0\0\0') or
         (s > 39 and data[39] != '\x02')):
       return 'unknown'
@@ -252,7 +253,7 @@ def detect_tcp_protocol(data):
       return 'tinc-client'
   elif c == '<':  # 'xmpp' (Jabber).
     # Based on https://xmpp.org/rfcs/rfc6120.html
-    if (not '<?xml'.startswith(data[:5]) or
+    if (not '<?xml'.startswith(buffer(data, 0, 5)) or
         (s > 5 and not data[5].isspace() and data[5] != '?')):
       return 'unknown'
     # TODO(pts): Do we need 128? Then also update PEEK_SIZE.
@@ -267,7 +268,7 @@ def detect_tcp_protocol(data):
       i += 1
     if i == s:
       return ''
-    if not '<stream:stream'.startswith(data[i : i + 14]):
+    if not '<stream:stream'.startswith(buffer(data, i, 14)):
       return 'unknown'
     i += 14
     if i >= s:
