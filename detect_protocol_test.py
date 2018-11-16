@@ -48,6 +48,9 @@ UWSGI_CLIENT_DATAS = (
     '\x06\x0a\x00\x00\x06\x00UWSGI_',
     '\x07\x03\x01\x00\xff\x00UWSGI_',
 )
+TINC_CLIENT_DATAS = (
+    '0 ',
+)
 
 
 def run_tests():
@@ -92,6 +95,10 @@ def run_tests():
     for i in xrange(12):
       assert detect_tcp_protocol(data[:i]) == ''
     assert detect_tcp_protocol(data) == 'uwsgi-client'
+  for data in TINC_CLIENT_DATAS:
+    for i in xrange(2):
+      assert detect_tcp_protocol(data[:i]) == ''
+    assert detect_tcp_protocol(data) == 'tinc-client'
 
 
 if __name__ == '__main__':

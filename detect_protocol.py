@@ -1,7 +1,7 @@
 #! /usr/bin/python
 # by pts@fazekas.hu at Sun Oct 21 09:16:49 CEST 2018
 #
-# TODO(pts): Add support for openvpn, tinc, adb, socks5
+# TODO(pts): Add support for openvpn, adb
 #            based on https://github.com/yrutschle/sslh/blob/master/probe.c
 # TODO(pts): Add FastCGI and SCGI.
 #
@@ -198,5 +198,12 @@ def detect_tcp_protocol(data):
     return 'smb-client'
   elif c in '\x06\x07\x08\x09\x0e':
     return _detect_uwsgi_client_protocol(data)
+  elif c == '0':
+    if s < 2:
+      return ''
+    elif data[1] != ' ':
+      return 'unknown'
+    else:
+      return 'tinc-client'
   else:
     return 'unknown'
