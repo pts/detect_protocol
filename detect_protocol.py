@@ -15,7 +15,8 @@ SUPPORTED_PROTOCOLS = (
     'tls-client',
     'ssl2-client',
     'ssl23-client',
-    'http-client',  # HTTP/1.0 or HTTP/1.1 request.
+    'http-client',  # HTTP/1.0 or HTTP/1.1 request to a server.
+    'http-proxy-client',  # HTTP/1.0 or HTTP/1.1 request to a proxy.
     'ssh2',
     'smb-client',
     'x11-client',
@@ -155,7 +156,7 @@ def detect_tcp_protocol(data):
       return 'x11-client'
     else:
       return 'unknown'
-  elif c in 'ABCDEFGHIJKLMNOPQRSTUVWXYZ':  # 'http-client' or 'ssh2' or 'x11-client' MSB-first or 'adb-client'.
+  elif c in 'ABCDEFGHIJKLMNOPQRSTUVWXYZ':  # 'http-client' or 'http-proxy-client' or 'ssh2' or 'x11-client' MSB-first or 'adb-client'.
     if c == 'C':  # Starts with 'CNXN'.
       protocol = _detect_adb_cnxn(data, 0)
       if protocol != 'unknown':
@@ -182,10 +183,20 @@ def detect_tcp_protocol(data):
       return 'unknown'
     elif i < 3 or i > 16:  # HTTP method name too long (arbitrary limit).
       return 'unknown'
+    elif not data[i].isspace():
+      return 'unknown'
     else:
       # TODO(pts): Should we be more strict with HTTP method names (i.e.
       #            have a whitelist)?
-      return 'http-client'
+      i += 1
+      while i < s and data[i].isspace():
+        i += 1
+      if i == s:
+        return ''
+      elif data[i] == '/':
+        return 'http-client'
+      else:
+        return 'http-proxy-client'
   elif c == '\x03':  # 'rdp-client'.
     # Based on xrdp-0.9.3.1/libxrdp/xrdp_iso.c.
     if s < 6:

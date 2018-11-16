@@ -22,10 +22,14 @@ SSH2_DATAS = (
     'SSH-2.0-MyClient\n',
 )
 HTTP_CLIENT_DATAS = (
-    'GET ',
-    'SSH ',
-    'UNSUBSCRIBE ',
+    'GET  /',
+    'SSH\t/',
+    'UNSUBSCRIBE\r\n/',
     'GET / HTTP/1.0\r\n',
+)
+HTTP_PROXY_CLIENT_DATAS = (
+    'GET http://example.org/foo HTTP/1.0\r\n',
+    'CONNECT\t server.example.com:80 HTTP/1.1\r\n',
 )
 SSL2_CLIENT_DATAS = (
     '\x80+\x01\x00\x02\x00\x12\x00\x00\x00\x10\x07\x00\xc0\x03\x00\x80\x01\x00\x80\x06\x00@\x04\x00\x80\x02\x00\x80`\xb5\xcfv\xf7\x8al\xdedG\xd8\xf2\x8d\xaf\xa4/',
@@ -87,9 +91,27 @@ def run_tests():
       assert detect_tcp_protocol(data[:i]) == ''
     assert detect_tcp_protocol(data) == 'ssh2'
   for data in HTTP_CLIENT_DATAS:
-    for i in xrange(data.find(' ') + 1):
+    j = 0
+    while not data[j].isspace():
+      j += 1
+    while data[j].isspace():
+      j += 1
+    j += 1
+    for i in xrange(j):
       assert detect_tcp_protocol(data[:i]) == ''
+    assert detect_tcp_protocol(data[:j]) == 'http-client'
     assert detect_tcp_protocol(data) == 'http-client'
+  for data in HTTP_PROXY_CLIENT_DATAS:
+    j = 0
+    while not data[j].isspace():
+      j += 1
+    while data[j].isspace():
+      j += 1
+    j += 1
+    for i in xrange(j):
+      assert detect_tcp_protocol(data[:i]) == ''
+    assert detect_tcp_protocol(data[:j]) == 'http-proxy-client'
+    assert detect_tcp_protocol(data) == 'http-proxy-client'
   for data in SSL2_CLIENT_DATAS:
     for i in xrange(min(len(data), 64)):
       assert detect_tcp_protocol(data[:i]) == ''
