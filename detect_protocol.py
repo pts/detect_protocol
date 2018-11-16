@@ -11,6 +11,23 @@ import struct
 PEEK_SIZE = 776  # Longest for 'ssl2-client'.
 """Minimum len(data) for which detect_tcp_protocol doesn't return ''."""
 
+SUPPORTED_PROTOCOLS = (
+    'tls-client',
+    'ssl2-client',
+    'ssl23-client',
+    'http-client',  # HTTP/1.0 or HTTP/1.1 request.
+    'ssh2',
+    'smb-client',
+    'x11-client',
+    'rdp-client',
+    'socks5-client',
+    'uwsgi-client',
+    'tinc-client',
+    'xmpp',
+    'adb-client',
+)
+"""Sequence of protocol return values of detect_protocol."""
+
 
 def _detect_uwsgi_client_protocol(data):
   """Helper function to detect 'uwsgi-client' only."""
@@ -76,20 +93,15 @@ def detect_tcp_protocol(data):
   Also does some (but not comprehensive) data error checking, and if a
   data error was found, returns 'unknown'.
 
-  Supported protocols (return values) are: 'tls-client', 'ssl2-client',
-  'ssl23-client', 'http-client', 'ssh2', 'smb-client', 'x11-client',
-  'rdp-client', 'socks5-client', 'uwsgi-client', 'tinc-client', 'xmpp',
-  'adb-client'.
-
   Args:
     data: str or buffer containing the first few bytes received on an
         incoming TCP connection. Can be a prefix of a record.
   Returns:
-    A string describing the application-level protocol spoken by the peer,
-    or 'unknown' if no protocol was recognized (or the peer has sent invalid
-    data), or '' if more data has to be read to determine the answer.
-    Tries very hard to use all information in `data', and returns '' only if
-    `data' is really too short.
+    A string describing the application-level protocol spoken by the peer
+    (one of SUPPORTED_PROTOCOLS), or 'unknown' if no protocol was recognized
+    (or the peer has sent invalid data), or '' if more data has to be read
+    to determine the answer. Tries very hard to use all information in
+    `data', and returns '' only if `data' is really too short.
   """
   if not data:
     return ''

@@ -61,8 +61,16 @@ ADB_CLIENT_DATAS = (
 )
 
 
+def detect_tcp_protocol(data):
+  protocol = detect_protocol.detect_tcp_protocol(data)
+  assert (protocol in detect_protocol.SUPPORTED_PROTOCOLS or
+          protocol in ('', 'unknown')), 'Unknown protocol: %r' % (protocol,)
+  return protocol
+
+
 def run_tests():
-  detect_tcp_protocol = detect_protocol.detect_tcp_protocol
+  assert '' not in detect_protocol.SUPPORTED_PROTOCOLS
+  assert 'unknown' not in detect_protocol.SUPPORTED_PROTOCOLS
   for data in TLS_CLIENT_DATAS:
     for i in xrange(52):
       assert detect_tcp_protocol(data[:i]) == ''
