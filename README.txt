@@ -34,6 +34,13 @@ expects the server to send some bytes first:
 * FTP
 * VNC
 
+The clients of these protocols can't be detected reliably:
+
+* OpenVPN: Not enough header fields to distinguish it from other protocols.
+  https://github.com/yrutschle/sslh/blob/8ec9799ca03e42a1cd38fd777a325751239067bc/probe.c#L153
+  tries to do it, but it is not reliable, because it relies on TCP
+  buffering timing.
+
 Similar projects:
 
 * https://github.com/yrutschle/sslh written in C. It doesn't peek, but

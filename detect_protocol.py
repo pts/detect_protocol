@@ -1,7 +1,7 @@
 #! /usr/bin/python
 # by pts@fazekas.hu at Sun Oct 21 09:16:49 CEST 2018
 #
-# TODO(pts): Add support for openvpn, adb
+# TODO(pts): Add support for adb
 #            based on https://github.com/yrutschle/sslh/blob/master/probe.c
 # TODO(pts): Add FastCGI and SCGI.
 #
