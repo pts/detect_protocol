@@ -63,7 +63,10 @@ ADB_CLIENT_DATAS = (
     'CNXN\0\0\0\1\0\0\4\0\6\0\0\0????\xbc\xb1\xa7\xb1host::',
     '\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\xff\xff\xff\xffCNXN\0\0\0\1\0\0\4\0\6\0\0\0????\xbc\xb1\xa7\xb1host::',
 )
-
+SCGI_CLIENT_DATAS = (
+    '42:',
+    '70:CONTENT_LENGTH\x0027\x00SCGI\x001\x00REQUEST_METHOD\x00POST\x00REQUEST_URI\x00/deepthought\x00,What is the answer to life?',
+)
 
 def detect_tcp_protocol(data):
   assert len(data) <= detect_protocol.PEEK_SIZE
@@ -151,6 +154,11 @@ def run_tests():
       assert detect_tcp_protocol(data[:i]) == ''
     assert detect_tcp_protocol(data[:29 + data.find('CNXN')]) == 'adb-client'
     assert detect_tcp_protocol(data) == 'adb-client'
+  for data in SCGI_CLIENT_DATAS:
+    data = data[:64]
+    for i in xrange(data.find(':') + 1):
+      assert detect_tcp_protocol(data[:i]) == ''
+    assert detect_tcp_protocol(data) == 'scgi-client'
 
 
 if __name__ == '__main__':

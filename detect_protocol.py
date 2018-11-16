@@ -2,7 +2,6 @@
 # by pts@fazekas.hu at Sun Oct 21 09:16:49 CEST 2018
 #
 # TODO(pts): Add detection of FastCGI.
-# TODO(pts): Add detection of SCGI.
 # TODO(pts): Add detection of bittorrent and encrypted bittorrent.
 #
 
@@ -26,6 +25,7 @@ SUPPORTED_PROTOCOLS = (
     'tinc-client',
     'xmpp',
     'adb-client',
+    'scgi-client',
 )
 """Sequence of protocol return values of detect_protocol."""
 
@@ -262,6 +262,20 @@ def detect_tcp_protocol(data):
       return 'unknown'
     else:
       return 'tinc-client'
+  elif c in '123456789':  # 'scgi-client'.
+    # Based on https://en.wikipedia.org/wiki/Simple_Common_Gateway_Interface
+    data = buffer(data, 0, 64)
+    i = 1
+    while i < s and data[i].isdigit():
+      i += 1
+    if i == s:
+      return ''
+    if data[i] != ':':
+      return 'unknown'
+    elif int(data[:i]) < 7:  # len('SCGI\x001\x00') == 7.
+      return 'unknown'
+    else:
+      return 'scgi-client'
   elif c == '<':  # 'xmpp' (Jabber).
     # Based on https://xmpp.org/rfcs/rfc6120.html
     if (not '<?xml'.startswith(buffer(data, 0, 5)) or
