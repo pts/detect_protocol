@@ -1,8 +1,6 @@
 #! /usr/bin/python
 # by pts@fazekas.hu at Sun Oct 21 09:16:49 CEST 2018
 #
-# TODO(pts): Add support for adb
-#            based on https://github.com/yrutschle/sslh/blob/master/probe.c
 # TODO(pts): Add FastCGI and SCGI.
 #
 
@@ -41,6 +39,33 @@ def _detect_uwsgi_client_protocol(data):
   if s < 12:
     return ''
   return 'uwsgi-client'
+
+
+def _detect_adb_cnxn(data, i):
+  """Helper function to detect 'adb-client' only from 'CNXN' at i."""
+  # Based on
+  # https://android.googlesource.com/platform/system/adb/+/master/protocol.txt
+  s = len(data)
+  if ((s > i and not 'CNXN'.startswith(data[i : i + 4])) or
+      (s > i + 12 and data[i + 12] < '\x06') or
+      (s > i + 13 and not '\0\0\0'.startswith(data[i + 13 : i + 16])) or
+      (s > i + 20 and
+       not '\xbc\xb1\xa7\xb1'.startswith(data[i + 20 : i + 24])) or
+      (s > i + 24 and not 'host:'.startswith(data[i + 24 : i + 29]))):
+    return 'unknown'
+  if s < i + 29:
+    return ''
+  return 'adb-client'
+
+
+def _detect_adb_with_empty_packet(data):
+  """Helper function to detect 'adb-client' starting with empty packet."""
+  s = len(data)
+  if data[:20].lstrip('\0') or data[20 : 24].lstrip('\xff'):
+    return 'unknown'
+  if s < 25:
+    return ''
+  return _detect_adb_cnxn(data, 24)
 
 
 def detect_tcp_protocol(data):
@@ -121,7 +146,11 @@ def detect_tcp_protocol(data):
       return 'x11-client'
     else:
       return 'unknown'
-  elif c in 'ABCDEFGHIJKLMNOPQRSTUVWXYZ':  # 'http-client' or 'ssh2' or 'x11-client' MSB-first.
+  elif c in 'ABCDEFGHIJKLMNOPQRSTUVWXYZ':  # 'http-client' or 'ssh2' or 'x11-client' MSB-first or 'adb-client'.
+    if c == 'C':  # Starts with 'CNXN'.
+      protocol = _detect_adb_cnxn(data, 0)
+      if protocol != 'unknown':
+        return protocol
     i = 1
     while i < s and i <= 16 and data[i] in 'ABCDEFGHIJKLMNOPQRSTUVWXYZ':
       i += 1
@@ -172,10 +201,15 @@ def detect_tcp_protocol(data):
       return 'unknown'
     else:
       return 'socks5-client'
-  elif c == '\0':  # 'smb-client'.
-    # No real conflict, because data[5] is 'S' and 'smb-client' and '\0' in
-    # 'uwsgi'-client.
+  elif c == '\0':  # 'smb-client' or 'uwsgi-client' or 'adb-client'.
+    # No real conflict, because:
+    # * If data[5] == 'S', then it's 'smb-client'.
+    # * If data[5] == '\0' and data[1 : 3] == '\0\0', then it's 'adb-client'.
+    # * if data[5] == '\0' and data[1 : 3] != '\0\0', then it's 'uswgi-client'.
     protocol = _detect_uwsgi_client_protocol(data)
+    if protocol != 'unknown':
+      return protocol
+    protocol = _detect_adb_with_empty_packet(data)
     if protocol != 'unknown':
       return protocol
     if ((s > 1 and data[1] != '\0') or

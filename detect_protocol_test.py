@@ -55,6 +55,11 @@ XMPP_DATAS = (
     '<?xml version=\'1.0\'?>\r\n<stream:stream\t',
     '<?xml version=\'1.0\'?>\r\n<stream:stream\n  version',
 )
+ADB_CLIENT_DATAS = (
+    'CNXN\0\0\0\1\0\0\4\0\6\0\0\0????\xbc\xb1\xa7\xb1host::',
+    '\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\xff\xff\xff\xffCNXN\0\0\0\1\0\0\4\0\6\0\0\0????\xbc\xb1\xa7\xb1host::',
+)
+
 
 def run_tests():
   detect_tcp_protocol = detect_protocol.detect_tcp_protocol
@@ -108,6 +113,11 @@ def run_tests():
       assert detect_tcp_protocol(data[:i]) == ''
     assert detect_tcp_protocol(data[:j]) == 'xmpp'
     assert detect_tcp_protocol(data) == 'xmpp'
+  for data in ADB_CLIENT_DATAS:
+    for i in xrange(29):
+      assert detect_tcp_protocol(data[:i]) == ''
+    assert detect_tcp_protocol(data[:29 + data.find('CNXN')]) == 'adb-client'
+    assert detect_tcp_protocol(data) == 'adb-client'
 
 
 if __name__ == '__main__':
