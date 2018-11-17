@@ -66,15 +66,35 @@ Similar projects:
 * https://github.com/shawnl/multiplexd
   Written in Go, supports SSH, HTTP, HTTPS and OpenVPN.
 * https://github.com/shawnl/nginx-ssh
+  An nginx module written in C which can start a setuid `sshd -i'. Thus it
+  supports SSH, HTTP and HTTPs. Needs a patch to the nginx
+  src/http/ngx_http_request.c source file. Patch date is 2001.
 * https://github.com/houkx/nettythrift
+  A Java library for Netty in Thrift. Supports HTTP, WebSocket and other
+  TCP.
 * https://github.com/robertklep/node-port-mux
+  A JavaScript library for None.js. Supports arbitrary regexp and function
+  matches on the first data block. Doesn't use MSG_PEEK, copies the data
+  around.
 * https://github.com/beatgammit/tcpmux
+  A Go library. Supports SSH and TCP default. Doesn't use MSG_PEEK,
+  copies the data around.
 * https://github.com/typcn/sshrdp
+  Written in JavaScript for Node.js. Supports SSH and TCP default. Doesn't
+  use MSG_PEEK, copies the data around.
 * https://github.com/VishvendraRana/socket_multiplexer
+  Written in Go. Unrelated, not similar despite the name.
 * https://github.com/huaye2007/tcpwebsocket
+  Written in Java for netty. Supports WebSocket and TCP default. Delegates
+  the protocol detection to Netty.
 * https://github.com/MarcosRZ/vhost-manager
+  Written in JavaScript for Node.js. Usee `express' and `vhost' to run
+  multiple HTTP application, and route to them based on the `Host:' header.
 * https://github.com/frxstrem/go-polyglot
+  a Go library, supports only HTTP and HTTPS. Uses MSG_PEEK to peek 1 byte.
 * https://github.com/foursquare/finagle-dual
+  A Scala library and command-line tool for Netty. Supports HTTP and Thrift
+  (RPC). Doesn't use MSG_PEEK.
 * Search for "same port" on GitHub.
 
 __END__
