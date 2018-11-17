@@ -67,6 +67,10 @@ SCGI_CLIENT_DATAS = (
     '42:',
     '70:CONTENT_LENGTH\x0027\x00SCGI\x001\x00REQUEST_METHOD\x00POST\x00REQUEST_URI\x00/deepthought\x00,What is the answer to life?',
 )
+FASTCGI_CLIENT_DATAS = (
+    '\1\1\0\1',
+    '\1\x09\0\0',
+)
 
 def detect_tcp_protocol(data):
   assert len(data) <= detect_protocol.PEEK_SIZE
@@ -159,6 +163,10 @@ def run_tests():
     for i in xrange(data.find(':') + 1):
       assert detect_tcp_protocol(data[:i]) == ''
     assert detect_tcp_protocol(data) == 'scgi-client'
+  for data in FASTCGI_CLIENT_DATAS:
+    for i in xrange(len(data)):
+      assert detect_tcp_protocol(data[:i]) == ''
+    assert detect_tcp_protocol(data) == 'fastcgi-client'
 
 
 if __name__ == '__main__':

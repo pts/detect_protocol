@@ -1,7 +1,6 @@
 #! /usr/bin/python
 # by pts@fazekas.hu at Sun Oct 21 09:16:49 CEST 2018
 #
-# TODO(pts): Add detection of FastCGI.
 # TODO(pts): Add detection of bittorrent and encrypted bittorrent.
 #
 
@@ -21,11 +20,12 @@ SUPPORTED_PROTOCOLS = (
     'x11-client',
     'rdp-client',
     'socks5-client',
-    'uwsgi-client',
+    'uwsgi-client',  # Webserver connecting to uwsgi application server.
     'tinc-client',
     'xmpp',
     'adb-client',
-    'scgi-client',
+    'scgi-client',  # Webserver connecting to SCGI application.
+    'fastcgi-client',  # Webserver connecting to FastCGI application.
 )
 """Sequence of protocol return values of detect_protocol."""
 
@@ -305,5 +305,15 @@ def detect_tcp_protocol(data):
     if not data[i].isspace():
       return 'unknown'
     return 'xmpp'
+  elif c == '\x01':  # 'fastcgi-client'.
+    # Based on https://fast-cgi.github.io/spec
+    if ((s > 1 and data[1] not in '\x01\x09') or
+        (s > 3 and data[1] == '\x01' and data[2 : 4] == '\0\0') or  # FCGI_BEGIN_REQUEST
+        (s > 2 and data[1] == '\x09' and not '\0\0'.startswith(buffer(data, 2, 2)))):  # FCGI_GET_VALUES
+      return 'unknown'
+    if s < 4:
+      return ''
+    # data[2 : 4] is MSB-first, but we don't need it.
+    return 'fastcgi-client'
   else:
     return 'unknown'
