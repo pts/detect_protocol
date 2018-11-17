@@ -1,7 +1,8 @@
 #! /usr/bin/python
 # by pts@fazekas.hu at Sun Oct 21 09:16:49 CEST 2018
 #
-# TODO(pts): Add detection of bittorrent and encrypted bittorrent.
+# TODO(pts): Add detection of bittorrent tracker client.
+# TODO(pts): Add detection of encrypted bittorrent peer.
 #
 
 import struct
@@ -26,6 +27,7 @@ SUPPORTED_PROTOCOLS = (
     'adb-client',
     'scgi-client',  # Webserver connecting to SCGI application.
     'fastcgi-client',  # Webserver connecting to FastCGI application.
+    'bittorrent-peer',
 )
 """Sequence of protocol return values of detect_protocol."""
 
@@ -315,5 +317,13 @@ def detect_tcp_protocol(data):
       return ''
     # data[2 : 4] is MSB-first, but we don't need it.
     return 'fastcgi-client'
+  elif c == '\x13':  # 'bittorrent-peer':
+    # Based on http://www.bittorrent.org/beps/bep_0003.html
+    if not '\x13BitTorrent protocol'.startswith(buffer(data, 0, 20)):
+      return 'unknown'
+    elif s < 20:
+      return ''
+    else:
+      return 'bittorrent-peer'
   else:
     return 'unknown'

@@ -71,6 +71,9 @@ FASTCGI_CLIENT_DATAS = (
     '\1\1\0\1',
     '\1\x09\0\0',
 )
+BITTORRENT_PEER_DATAS = (
+    '\x13BitTorrent protocol',
+)
 
 def detect_tcp_protocol(data):
   assert len(data) <= detect_protocol.PEEK_SIZE
@@ -167,6 +170,10 @@ def run_tests():
     for i in xrange(len(data)):
       assert detect_tcp_protocol(data[:i]) == ''
     assert detect_tcp_protocol(data) == 'fastcgi-client'
+  for data in BITTORRENT_PEER_DATAS:
+    for i in xrange(len(data)):
+      assert detect_tcp_protocol(data[:i]) == ''
+    assert detect_tcp_protocol(data) == 'bittorrent-peer'
 
 
 if __name__ == '__main__':
