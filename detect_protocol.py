@@ -1,9 +1,6 @@
 #! /usr/bin/python
 # by pts@fazekas.hu at Sun Oct 21 09:16:49 CEST 2018
 #
-# TODO(pts): Add detection of bittorrent tracker client.
-# TODO(pts): Add detection of encrypted bittorrent peer.
-#
 
 import struct
 
@@ -196,6 +193,13 @@ def detect_tcp_protocol(data):
       if i == s:
         return ''
       elif data[i] == '/':
+        # Based on
+        # https://wiki.theory.org/index.php/BitTorrentSpecification#Tracker_HTTP.2FHTTPS_Protocol
+        # : requests from the bittorrent client to the bittorrent tracker
+        # can use a binary UDP protocol or HTTP(S). We report the latter as
+        # 'http-client' here, since there is no foolproof way to distinguish it
+        # from a HTTP GET request. We could detect the presence of info_hash=,
+        # peer_id= etc. HTTP URL parameters, but it's tricky to do in 64 bytes.
         return 'http-client'
       else:
         return 'http-proxy-client'

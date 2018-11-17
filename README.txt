@@ -41,6 +41,11 @@ The clients of these protocols can't be detected reliably:
   tries to do it, but it is not reliable, because it relies on TCP
   buffering timing.
 
+* Encrypted bittorrent protocol between peers (documented on
+  http://wiki.vuze.com/w/Message_Stream_Encryption), because the first
+  message looks like random garbage. (In fact it contiains Diffie--Hellman
+  values and random padding.)
+
 Similar projects:
 
 * https://github.com/yrutschle/sslh written in C. It doesn't peek, but
