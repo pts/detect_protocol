@@ -240,6 +240,9 @@ def detect_tcp_protocol(data):
     protocol = _detect_adb_with_empty_packet(data)
     if protocol != 'unknown':
       return protocol
+    # This is SMB over TCP, typically on port 445, as used by smbclient(1).
+    # (The alternative is SMB over NetBIOS (NBT) over TCP, typically on ports
+    # 137 and 139, and we are not able to detect it.)
     if ((s > 1 and data[1] != '\0') or
         # 'r' is SMB_COM_NEGOTIATE == 0x72.
         # '\0\0\0\0' is SMB_ERROR.
