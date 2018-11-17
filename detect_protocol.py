@@ -238,6 +238,10 @@ def detect_tcp_protocol(data):
     #
     # We wouldn't be able to match openvpn-client though (/^\x00[\x0D-\xFF]/),
     # because it conflicts with 'uwsgi-client'.
+    #
+    # TODO(pts): Add a flag to disable 'smb-client', 'uwsgi-client' and
+    # 'adb-client', so that we can enable 'openvpn-client', which starts with
+    # '\0'.
     protocol = _detect_uwsgi_client_protocol(data)
     if protocol != 'unknown':
       return protocol

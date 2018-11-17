@@ -48,14 +48,23 @@ The clients of these protocols can't be detected reliably:
 
 Similar projects:
 
-* https://github.com/yrutschle/sslh written in C. It doesn't peek, but
+* https://github.com/yrutschle/sslh
+  Written in C. It doesn't peek, but
   consumes the input bytes. It can also match on alpn_protocols and
   sni_hostnames for tls-client.
 * https://github.com/jamescun/switcher
+  Written in Go.
+  Contains dumb SSH detection and no fancy protocol detection.
 * https://github.com/soheilhy/cmux
+  A Go library, supports HTTP/1.x, HTTP/2, TLS, header matching (e.g.
+  "content-type": "application/grpc") and prefix (e.g. SSH).
 * https://github.com/stealth/sshttp
+  Written in C++. Supports HTTP, HTTPS and SSH. Has a built-in HTTP server.
+  Supports SNI for HTTPS.
 * https://github.com/mscdex/httpolyglot
+  Written in JavaScript for Node.js, supports only HTTP and HTTPS.
 * https://github.com/shawnl/multiplexd
+  Written in Go, supports SSH, HTTP, HTTPS and OpenVPN.
 * https://github.com/shawnl/nginx-ssh
 * https://github.com/houkx/nettythrift
 * https://github.com/robertklep/node-port-mux
