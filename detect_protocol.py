@@ -26,6 +26,7 @@ SUPPORTED_PROTOCOLS = (
     'fastcgi-client',  # Webserver connecting to FastCGI application.
     'bittorrent-peer',
     'zmtp',  # ZeroMQ.
+    'nanomsg-sp',  # nanomsg scalability protocol over TCP.
 )
 """Sequence of protocol return values of detect_protocol."""
 
@@ -33,11 +34,10 @@ SUPPORTED_PROTOCOLS = (
 def _detect_uwsgi_client_protocol(data):
   """Helper function to detect 'uwsgi-client' only."""
   # Based on https://uwsgi-docs.readthedocs.io/en/latest/Protocol.html
-  if not data:
-    return ''
   s = len(data)
   if ((s and data[0] not in '\x00\x06\x07\x08\x09\x0e') or
       (s > 3 and data[3] != '\0') or
+      (s > 4 and data[4] < '\x06') or  # min(len('HTTP_?'), len('UWSGI_')).
       (s > 5 and data[5] != '\0') or
       (6 < s <= 11 and not 'HTTP_'.startswith(buffer(data, 6, 5)) and
                        not 'UWSGI'.startswith(buffer(data, 6, 5))) or
@@ -59,6 +59,24 @@ def _detect_uwsgi_client_protocol(data):
   if s < 12:
     return ''
   return 'uwsgi-client'
+
+
+def _detect_nanomsg_sp_protocol(data):
+  """Helper function to detect 'nanomsg-sp' only."""
+  # Based on
+  # https://github.com/nanomsg/nanomsg/blob/master/rfc/sp-tcp-mapping-01.txt
+  # and
+  # https://github.com/nanomsg/nanomsg/blob/master/rfc/sp-protocol-ids-01.txt
+  s = len(data)
+  if (not '\x00SP\x00'.startswith(buffer(data, 0, 4)) or
+      (s > 4 and data[4] > '\1') or
+      (s > 5 and data[4] == '\0' and data[5] < '\x10')):
+    # data[4 : 5] is MDB-first of (protocol << 4 | endpoint), where
+    # 1 <= protocol <= 31. Currently only 1 <= protocol <= 8 is assigned.
+    return 'unknown'
+  if s < 6:
+    return ''
+  return 'nanomsg-sp'
 
 
 def _detect_adb_cnxn(data, i):
@@ -230,12 +248,14 @@ def detect_tcp_protocol(data):
       return 'unknown'
     else:
       return 'socks5-client'
-  elif c == '\0':  # 'smb-client' or 'uwsgi-client' or 'adb-client'.
+  elif c == '\0':  # 'smb-client' or 'uwsgi-client' or 'adb-client' or 'nanomsg-sp'.
     # No real conflict, because:
     #
-    # * If data[5] == 'S', then it's 'smb-client'.
-    # * If data[5] == '\0' and data[1 : 3] == '\0\0', then it's 'adb-client'.
-    # * if data[5] == '\0' and data[1 : 3] != '\0\0', then it's 'uwsgi-client'.
+    # * If data[4] == '\x00' and data[5] == '\x00', then it's 'adb-client'.
+    # * If data[4] == '\x00' and data[5] >= '\x10', then it's 'nanomsg-sp'.
+    # * If data[4] == '\x01' and data[5] is any,    then it's 'nanomsg-sp'.
+    # * if data[4] >= '\x06' and data[5] == '\x00', then it's 'uwsgi-client'.
+    # * If data[4] == '\xff' and data[5] == 'S',    then it's 'smb-client'.
     #
     # We wouldn't be able to match openvpn-client though (/^\x00[\x0D-\xFF]/),
     # because it conflicts with 'uwsgi-client'.
@@ -247,6 +267,9 @@ def detect_tcp_protocol(data):
     if protocol != 'unknown':
       return protocol
     protocol = _detect_adb_with_empty_packet(data)
+    if protocol != 'unknown':
+      return protocol
+    protocol = _detect_nanomsg_sp_protocol(data)
     if protocol != 'unknown':
       return protocol
     # This is SMB over TCP, typically on port 445, as used by smbclient(1).
