@@ -25,6 +25,7 @@ SUPPORTED_PROTOCOLS = (
     'scgi-client',  # Webserver connecting to SCGI application.
     'fastcgi-client',  # Webserver connecting to FastCGI application.
     'bittorrent-peer',
+    'zmtp',  # ZeroMQ.
 )
 """Sequence of protocol return values of detect_protocol."""
 
@@ -318,7 +319,11 @@ def detect_tcp_protocol(data):
     if not data[i].isspace():
       return 'unknown'
     return 'xmpp'
-  elif c == '\x01':  # 'fastcgi-client'.
+  elif c == '\x01':  # 'fastcgi-client' or 'zmtp'.
+    # Based on https://rfc.zeromq.org/spec:13/ZMTP/
+    # Please note that non-anonymous ZMTP/1.0 peers are not supported.
+    if s > 1 and data[1] == '\x00':
+      return 'zmtp'
     # Based on https://fast-cgi.github.io/spec
     if ((s > 1 and data[1] not in '\x01\x09') or
         (s > 3 and data[1] == '\x01' and data[2 : 4] == '\0\0') or  # FCGI_BEGIN_REQUEST
@@ -336,5 +341,13 @@ def detect_tcp_protocol(data):
       return ''
     else:
       return 'bittorrent-peer'
+  elif c == '\xff':  # 'zmtp' ZMTP/2.0.
+    # Based on https://rfc.zeromq.org/spec:15/ZMTP/
+    if not '\xff\0\0\0\0\0\0\0\0\x7f'.startswith(buffer(data, 0, 10)):
+      return 'unknown'
+    elif s < 10:
+      return ''
+    else:
+      return 'zmtp'
   else:
     return 'unknown'

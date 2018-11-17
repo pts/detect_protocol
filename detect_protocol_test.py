@@ -74,6 +74,10 @@ FASTCGI_CLIENT_DATAS = (
 BITTORRENT_PEER_DATAS = (
     '\x13BitTorrent protocol',
 )
+ZMTP_DATAS = (
+    '\1\0',
+    '\xff\0\0\0\0\0\0\0\0\x7f',
+)
 
 def detect_tcp_protocol(data):
   assert len(data) <= detect_protocol.PEEK_SIZE
@@ -174,6 +178,10 @@ def run_tests():
     for i in xrange(len(data)):
       assert detect_tcp_protocol(data[:i]) == ''
     assert detect_tcp_protocol(data) == 'bittorrent-peer'
+  for data in ZMTP_DATAS:
+    for i in xrange(len(data)):
+      assert detect_tcp_protocol(data[:i]) == ''
+    assert detect_tcp_protocol(data) == 'zmtp'
 
 
 if __name__ == '__main__':
