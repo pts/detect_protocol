@@ -24,7 +24,7 @@ SSH2_DATAS = (
 HTTP_CLIENT_DATAS = (
     'GET  /',
     'SSH\t/',
-    'UNSUBSCRIBE\r\n/',
+    'UNSUBSCRIBE\f/',
     'GET / HTTP/1.0\r\n',
 )
 HTTP_PROXY_CLIENT_DATAS = (
@@ -91,6 +91,15 @@ MEMCACHED_CLIENT_DATAS = (
     'add x',
     'get\tx',
     'stats\r\n',
+)
+REDIS_CLIENT_INLINE_DATAS = (
+    'PING\n',
+    'PING\r\n',
+    'CLIENT ID',
+    'CLIENT\tID',
+)
+REDIS_CLIENT_DATAS = (
+    '*2\r\n$6\r\nCLIENT\r\n$2\r\nID\r\n',
 )
 
 def detect_tcp_protocol(data):
@@ -208,6 +217,21 @@ def run_tests():
       assert detect_tcp_protocol(data[:i]) == ''
     assert detect_tcp_protocol(data[:j + 1]) == 'memcached-client'
     assert detect_tcp_protocol(data) == 'memcached-client'
+  for data in REDIS_CLIENT_INLINE_DATAS:
+    j = 0
+    while not data[j].isspace():
+      j += 1
+    if data[j].isspace():
+      j += 1
+    for i in xrange(j):
+      assert detect_tcp_protocol(data[:i]) == ''
+    assert detect_tcp_protocol(data[:j + 1]) == 'redis-client-inline'
+    assert detect_tcp_protocol(data) == 'redis-client-inline'
+  for data in REDIS_CLIENT_DATAS:
+    for i in xrange(data.find('\n')):
+      assert detect_tcp_protocol(data[:i]) == ''
+    assert detect_tcp_protocol(data[:data.find('\n') + 1]) == 'redis-client'
+    assert detect_tcp_protocol(data) == 'redis-client'
 
 
 if __name__ == '__main__':

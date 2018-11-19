@@ -1,7 +1,6 @@
 #! /usr/bin/python
 # by pts@fazekas.hu at Sun Oct 21 09:16:49 CEST 2018
 #
-# TODO(pts): Add Redis.
 # TODO(pts): Add MySQL / MariaDB.
 # TODO(pts): Add PosgreSQL.
 #
@@ -33,6 +32,8 @@ SUPPORTED_PROTOCOLS = (
     'nanomsg-sp',  # nanomsg scalability protocol over TCP.
     'rtmp',
     'memcached-client',
+    'redis-client',
+    'redis-client-inline',
 )
 """Sequence of protocol return values of detect_protocol."""
 
@@ -110,6 +111,19 @@ def _detect_adb_with_empty_packet(data):
   if s < 25:
     return ''
   return _detect_adb_cnxn(data, 24)
+
+
+# Only these: https://tools.ietf.org/html/rfc7231#section-4
+#
+# More from here: https://annevankesteren.nl/2007/10/http-methods
+# Especially WebDAV, includes PROPFIND and UNSUBSCRIBE.
+HTTP_METHODS = (
+    'GET', 'HEAD', 'POST', 'PUT', 'DELETE', 'CONNECT', 'OPTIONS', 'TRACE',
+    # Others.
+    'TRACK',
+)
+# https://redis.io/commands
+#REDIS_COMMANDS = ('APPEND', 'AUTH', 'BGREWRITEAOF', 'BGSAVE', 'BITCOUNT', 'BITFIELD', 'BITOP', 'BITPOS', 'BLPOP', 'BRPOP', 'BRPOPLPUSH', 'BZPOPMAX', 'BZPOPMIN', 'CLIENT', 'CLUSTER', 'COMMAND', 'CONFIG', 'DBSIZE', 'DEBUG', 'DECR', 'DECRBY', 'DEL', 'DISCARD', 'DUMP', 'ECHO', 'EVAL', 'EVALSHA', 'EXEC', 'EXISTS', 'EXPIRE', 'EXPIREAT', 'FLUSHALL', 'FLUSHDB', 'GEOADD', 'GEODIST', 'GEOHASH', 'GEOPOS', 'GEORADIUS', 'GEORADIUSBYMEMBER', 'GET', 'GETBIT', 'GETRANGE', 'GETSET', 'HDEL', 'HEXISTS', 'HGET', 'HGETALL', 'HINCRBY', 'HINCRBYFLOAT', 'HKEYS', 'HLEN', 'HMGET', 'HMSET', 'HSCAN', 'HSET', 'HSETNX', 'HSTRLEN', 'HVALS', 'INCR', 'INCRBY', 'INCRBYFLOAT', 'INFO', 'KEYS', 'LASTSAVE', 'LINDEX', 'LINSERT', 'LLEN', 'LPOP', 'LPUSH', 'LPUSHX', 'LRANGE', 'LREM', 'LSET', 'LTRIM', 'MEMORY', 'MGET', 'MIGRATE', 'MONITOR', 'MOVE', 'MSET', 'MSETNX', 'MULTI', 'OBJECT', 'PERSIST', 'PEXPIRE', 'PEXPIREAT', 'PFADD', 'PFCOUNT', 'PFMERGE', 'PING', 'PSETEX', 'PSUBSCRIBE', 'PTTL', 'PUBLISH', 'PUBSUB', 'PUNSUBSCRIBE', 'QUIT', 'RANDOMKEY', 'READONLY', 'READWRITE', 'RENAME', 'RENAMENX', 'REPLICAOF', 'RESTORE', 'ROLE', 'RPOP', 'RPOPLPUSH', 'RPUSH', 'RPUSHX', 'SADD', 'SAVE', 'SCAN', 'SCARD', 'SCRIPT', 'SDIFF', 'SDIFFSTORE', 'SELECT', 'SET', 'SETBIT', 'SETEX', 'SETNX', 'SETRANGE', 'SHUTDOWN', 'SINTER', 'SINTERSTORE', 'SISMEMBER', 'SLAVEOF', 'SLOWLOG', 'SMEMBERS', 'SMOVE', 'SORT', 'SPOP', 'SRANDMEMBER', 'SREM', 'SSCAN', 'STRLEN', 'SUBSCRIBE', 'SUNION', 'SUNIONSTORE', 'SWAPDB', 'SYNC', 'TIME', 'TOUCH', 'TTL', 'TYPE', 'UNLINK', 'UNSUBSCRIBE', 'UNWATCH', 'WAIT', 'WATCH', 'XACK', 'XADD', 'XCLAIM', 'XDEL', 'XGROUP', 'XINFO', 'XLEN', 'XPENDING', 'XRANGE', 'XREAD', 'XREADGROUP', 'XREVRANGE', 'XTRIM', 'ZADD', 'ZCARD', 'ZCOUNT', 'ZINCRBY', 'ZINTERSTORE', 'ZLEXCOUNT', 'ZPOPMAX', 'ZPOPMIN', 'ZRANGE', 'ZRANGEBYLEX', 'ZRANGEBYSCORE', 'ZRANK', 'ZREM', 'ZREMRANGEBYLEX', 'ZREMRANGEBYRANK', 'ZREMRANGEBYSCORE', 'ZREVRANGE', 'ZREVRANGEBYLEX', 'ZREVRANGEBYSCORE', 'ZREVRANK', 'ZSCAN', 'ZSCORE', 'ZUNIONSTORE')
 
 
 def detect_tcp_protocol(data):
@@ -338,6 +352,19 @@ def detect_tcp_protocol(data):
       return ''
     else:
       return 'zmtp'
+  elif c == '*':  # 'redis-client'.
+    # Based on https://redis.io/topics/protocol
+    if s > 1 and data[1] not in '123456789':
+      return 'unknown'
+    i = 1
+    while i < s and i <= 26 and data[i] in '0123456789':
+      i += 1
+    if not '\r\n'.startswith(buffer(data, i, 2)):
+      return 'unknown'
+    elif s < i + 2:
+      return ''
+    else:
+      return 'redis-client'
   elif c in 'abcdefghijklmnopqrstuvwxyz':  # 'memcached-client' or 'x11-client'.
     i = 1
     while i < s and i <= 16 and data[i] in 'abcdefghijklmnopqrstuvwxyz':
@@ -361,15 +388,17 @@ def detect_tcp_protocol(data):
     # incr decr touch gat gats slabs lru lru_crawler stats flush_all
     # cache_memlimit version quit misbehave
     return 'memcached-client'
-  elif c in 'ABCDEFGHIJKLMNOPQRSTUVWXYZ':  # 'http-client' or 'http-proxy-client' or 'ssh2' or 'x11-client' MSB-first or 'adb-client'.
+  elif c in 'ABCDEFGHIJKLMNOPQRSTUVWXYZ':  # 'http-client' or 'http-proxy-client' or 'ssh2' or 'x11-client' MSB-first or 'adb-client' or 'redis-client-inline'.
     if c == 'C':  # Starts with 'CNXN'.
       protocol = _detect_adb_cnxn(data, 0)
       if protocol != 'unknown':
         return protocol
     i = 1
+    # TODO(pts): Allow - and _ , see here:
+    # https://annevankesteren.nl/2007/10/http-methods
     while i < s and i <= 16 and data[i] in 'ABCDEFGHIJKLMNOPQRSTUVWXYZ':
       i += 1
-    if i == s:  # A ' ' or '-' is needed.
+    if i == s:  # One more character is needed.
       return ''
     elif i == 1 and data[:2] == 'B\0':
       # Based on ``Connection Setup'' in
@@ -393,8 +422,11 @@ def detect_tcp_protocol(data):
     elif not data[i].isspace():
       return 'unknown'
     else:
+      if data[i] in '\r\n':
+        return 'redis-client-inline'
       # TODO(pts): Should we be more strict with HTTP method names (i.e.
       #            have a whitelist)?
+      method = buffer(data, 0, i)
       i += 1
       while i < s and data[i].isspace():
         i += 1
@@ -418,6 +450,16 @@ def detect_tcp_protocol(data):
         # https://www.joachim-bauch.de/tutorials/red5/rtmpt-protocol/ .
         return 'http-client'
       else:
-        return 'http-proxy-client'
+        # 'redis-inline' commands with arguments are also identified as
+        # 'http-proxy-client'. TODO(pts): Check the first argument for
+        # [a-z0-9]+;// prefix, and return 'http-proxy-client' only then.
+        #
+        # We disambiguate based on command name, but both HTTP
+        # (WebDAV) and Redis have e.g. UNSUBSCRIBE.
+        if method[:] in HTTP_METHODS:
+          return 'http-proxy-client'
+        else:
+          # Based on https://redis.io/topics/protocol
+          return 'redis-client-inline'
   else:
     return 'unknown'
