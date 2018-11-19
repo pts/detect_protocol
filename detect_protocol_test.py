@@ -105,6 +105,10 @@ POSTGRESQL_CLIENT_DATAS = (
     '\0\0\0\x09\0\3\0\0\0',
     '\0\0\0\x13\0\3\0\0user\0root\0\0',
 )
+RSYNCD_CLIENT_DATAS = (
+    '@RSYNCD: 30.0\n',
+    '@RSYNCD: 31.0\n',
+)
 
 def detect_tcp_protocol(data):
   assert len(data) <= detect_protocol.PEEK_SIZE
@@ -241,6 +245,11 @@ def run_tests():
       assert detect_tcp_protocol(data[:i]) == ''
     assert detect_tcp_protocol(data[:7]) == 'postgresql-client'
     assert detect_tcp_protocol(data) == 'postgresql-client'
+  for data in RSYNCD_CLIENT_DATAS:
+    for i in xrange(data.find(' ') + 1):
+      assert detect_tcp_protocol(data[:i]) == ''
+    assert detect_tcp_protocol(data[:data.find(' ') + 2]) == 'rsyncd-client'
+    assert detect_tcp_protocol(data) == 'rsyncd-client'
 
 
 if __name__ == '__main__':

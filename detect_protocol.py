@@ -32,6 +32,7 @@ SUPPORTED_PROTOCOLS = (
     'redis-client',
     'redis-client-inline',
     'postgresql-client',
+    'rsyncd-client',
 )
 """Sequence of protocol return values of detect_protocol."""
 
@@ -390,6 +391,17 @@ def detect_tcp_protocol(data):
       return ''
     else:
       return 'redis-client'
+  elif c == '@':  # 'rsyncd-client'.
+    # Based on observations of rsync-3.0.7 (2009) with the command `rsync
+    # rsync://127.0.0.1:5555/'. Version number (VV.V) was 30. rsync-3.1.2
+    # from 2015 has version number 31. Typical header: '@RSYNCD: VV.V\n'.
+    if (not  '@RSYNCD: '.startswith(buffer(data, 0, 9)) or
+        (s > 9 and data[9] not in '123456789')):
+      return 'unknown'
+    elif s < 10:
+      return ''
+    else:
+      return 'rsyncd-client'
   elif c in 'abcdefghijklmnopqrstuvwxyz':  # 'memcached-client' or 'x11-client'.
     i = 1
     while i < s and i <= 16 and data[i] in 'abcdefghijklmnopqrstuvwxyz':
