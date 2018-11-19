@@ -2,7 +2,6 @@
 # by pts@fazekas.hu at Sun Oct 21 09:16:49 CEST 2018
 #
 # TODO(pts): Add MySQL / MariaDB.
-# TODO(pts): Add PosgreSQL.
 #
 
 import struct
@@ -34,6 +33,7 @@ SUPPORTED_PROTOCOLS = (
     'memcached-client',
     'redis-client',
     'redis-client-inline',
+    'postgresql-client',
 )
 """Sequence of protocol return values of detect_protocol."""
 
@@ -111,6 +111,50 @@ def _detect_adb_with_empty_packet(data):
   if s < 25:
     return ''
   return _detect_adb_cnxn(data, 24)
+
+
+def _detect_postgresql_client_protocol(data):
+  """Helper function to detect 'postgresql-client' only."""
+  # Based on https://www.pgcon.org/2014/schedule/attachments/330_postgres-for-the-wire.pdf
+  # Based on https://github.com/mfenniak/pg8000/blob/60fbf74147709ab52f89a31fbaeda8194a10cec4/pg8000/core.py#L1447
+  s = len(data)
+  if (not '\0\0'.startswith(buffer(data, 0, 2)) or
+      (s > 3 and data[2] == '\0' and data[3] < '\x09') or
+      (s > 4 and data[4] != '\0') or
+      (s > 5 and not '\1' <= data[5] <= '\x0f') or  # Major version: 1, 2 or 3.
+      (s > 6 and data[6] != '\0')):
+    return 'unknown'
+  elif s < 7:
+    return ''
+  else:
+    return 'postgresql-client'
+
+
+def _detect_smb_client_protocol(data):
+  """Helper function to detect 'smb-client' only."""
+  # This is SMB over TCP, typically on port 445, as used by smbclient(1).
+  # (The alternative is SMB over NetBIOS (NBT) over TCP, typically on ports
+  # 137 and 139, and we are not able to detect it.)
+  s = len(data)
+  if (not '\0\0'.startswith(buffer(data, 0, 2)) or
+      # 'r' is SMB_COM_NEGOTIATE == 0x72.
+      # '\0\0\0\0' is SMB_ERROR.
+      (s > 4 and s < 13 and
+       not '\xffSMBr\0\0\0\0'.startswith(buffer(data, 4, 9))) or
+      (s >= 13 and data[4 : 13] != '\xffSMBr\0\0\0\0') or
+      (s > 39 and data[39] != '\x02')):
+    return 'unknown'
+  if s >= 4:
+    size1, = struct.unpack('>H', data[2 : 4])
+    if size1 < 37:
+      return 'unknown'
+  if s >= 39:
+    size2, = struct.unpack('<H', data[37 : 39])
+    if size1 - size2 != 35:
+      return 'unknown'
+  if s < 41:
+    return ''
+  return 'smb-client'
 
 
 # Only these: https://tools.ietf.org/html/rfc7231#section-4
@@ -228,10 +272,11 @@ def detect_tcp_protocol(data):
       return 'unknown'
     else:
       return 'socks5-client'
-  elif c == '\0':  # 'smb-client' or 'uwsgi-client' or 'adb-client' or 'nanomsg-sp'.
+  elif c == '\0':  # 'smb-client' or 'uwsgi-client' or 'adb-client' or 'nanomsg-sp' or 'postgresql-client'.
     # No real conflict, because:
     #
     # * If data[4] == '\x00' and data[5] == '\x00', then it's 'adb-client'.
+    # * If data[4] == '\x00' and data[5] >= '\x01' and data[5] <= '\x0f', then it's 'postgresql-client'.
     # * If data[4] == '\x00' and data[5] >= '\x10', then it's 'nanomsg-sp'.
     # * If data[4] == '\x01' and data[5] is any,    then it's 'nanomsg-sp'.
     # * if data[4] >= '\x06' and data[5] == '\x00', then it's 'uwsgi-client'.
@@ -252,28 +297,10 @@ def detect_tcp_protocol(data):
     protocol = _detect_nanomsg_sp_protocol(data)
     if protocol != 'unknown':
       return protocol
-    # This is SMB over TCP, typically on port 445, as used by smbclient(1).
-    # (The alternative is SMB over NetBIOS (NBT) over TCP, typically on ports
-    # 137 and 139, and we are not able to detect it.)
-    if ((s > 1 and data[1] != '\0') or
-        # 'r' is SMB_COM_NEGOTIATE == 0x72.
-        # '\0\0\0\0' is SMB_ERROR.
-        (s > 4 and s < 13 and
-         not '\xffSMBr\0\0\0\0'.startswith(buffer(data, 4, 9))) or
-        (s >= 13 and data[4 : 13] != '\xffSMBr\0\0\0\0') or
-        (s > 39 and data[39] != '\x02')):
-      return 'unknown'
-    if s >= 4:
-      size1, = struct.unpack('>H', data[2 : 4])
-      if size1 < 37:
-        return 'unknown'
-    if s >= 39:
-      size2, = struct.unpack('<H', data[37 : 39])
-      if size1 - size2 != 35:
-        return 'unknown'
-    if s < 41:
-      return ''
-    return 'smb-client'
+    protocol = _detect_postgresql_client_protocol(data)
+    if protocol != 'unknown':
+      return protocol
+    return _detect_smb_client_protocol(data)
   elif c in '\x06\x07\x08\x09\x0e':
     return _detect_uwsgi_client_protocol(data)
   elif c == '0':

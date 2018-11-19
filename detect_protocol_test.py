@@ -101,6 +101,10 @@ REDIS_CLIENT_INLINE_DATAS = (
 REDIS_CLIENT_DATAS = (
     '*2\r\n$6\r\nCLIENT\r\n$2\r\nID\r\n',
 )
+POSTGRESQL_CLIENT_DATAS = (
+    '\0\0\0\x09\0\3\0\0\0',
+    '\0\0\0\x13\0\3\0\0user\0root\0\0',
+)
 
 def detect_tcp_protocol(data):
   assert len(data) <= detect_protocol.PEEK_SIZE
@@ -232,6 +236,11 @@ def run_tests():
       assert detect_tcp_protocol(data[:i]) == ''
     assert detect_tcp_protocol(data[:data.find('\n') + 1]) == 'redis-client'
     assert detect_tcp_protocol(data) == 'redis-client'
+  for data in POSTGRESQL_CLIENT_DATAS:
+    for i in xrange(7):
+      assert detect_tcp_protocol(data[:i]) == ''
+    assert detect_tcp_protocol(data[:7]) == 'postgresql-client'
+    assert detect_tcp_protocol(data) == 'postgresql-client'
 
 
 if __name__ == '__main__':
