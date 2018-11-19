@@ -2,7 +2,6 @@
 # by pts@fazekas.hu at Sun Oct 21 09:16:49 CEST 2018
 #
 # TODO(pts): Add Redis.
-# TODO(pts): Add memcached.
 # TODO(pts): Add MySQL / MariaDB.
 # TODO(pts): Add PosgreSQL.
 #
@@ -33,6 +32,7 @@ SUPPORTED_PROTOCOLS = (
     'zmtp',  # ZeroMQ.
     'nanomsg-sp',  # nanomsg scalability protocol over TCP.
     'rtmp',
+    'memcached-client',
 )
 """Sequence of protocol return values of detect_protocol."""
 
@@ -171,15 +171,29 @@ def detect_tcp_protocol(data):
     if s < min(64, vf_size + 11):  # Keep small buffer (64 bytes).
       return ''
     return ('ssl23-client', 'ssl2-client')[data[3] == '\0']
-  elif c == 'l':  # 'x11-client' LSB-first.
-    # ``Connection Setup'' in
-    # https://www.x.org/releases/X11R7.5/doc/x11proto/proto.pdf
-    if s < 6 and 'l\0\x0b\0\0\0'.startswith(data):
+  elif c in 'abcdefghijklmnopqrstuvwxyz':  # 'memcached-client' or 'x11-client'.
+    i = 1
+    while i < s and i <= 16 and data[i] in 'abcdefghijklmnopqrstuvwxyz':
+      i += 1
+    if i == s:  # Whitespace is needed for 'memcached-client'.
       return ''
-    elif s >= 6 and data[:6] == 'l\0\x0b\0\0\0':
-      return 'x11-client'
-    else:
+    # 'x11-client' LSB-first.
+    #
+    # Based on ``Connection Setup'' in
+    # https://www.x.org/releases/X11R7.5/doc/x11proto/proto.pdf
+    if i == 1 and c == 'l' and 'l\0\x0b\0\0\0'.startswith(buffer(data, 0, 6)):
+      if s < 6:
+        return ''
+      else:
+        return 'x11-client'
+    # 'memcached-client' based on
+    # https://github.com/memcached/memcached/blob/master/doc/protocol.txt
+    if not data[i].isspace():
       return 'unknown'
+    # Known commands: set add replace append prepend cas get and gets delete
+    # incr decr touch gat gats slabs lru lru_crawler stats flush_all
+    # cache_memlimit version quit misbehave
+    return 'memcached-client'
   elif c in 'ABCDEFGHIJKLMNOPQRSTUVWXYZ':  # 'http-client' or 'http-proxy-client' or 'ssh2' or 'x11-client' MSB-first or 'adb-client'.
     if c == 'C':  # Starts with 'CNXN'.
       protocol = _detect_adb_cnxn(data, 0)
@@ -191,6 +205,8 @@ def detect_tcp_protocol(data):
     if i == s:  # A ' ' or '-' is needed.
       return ''
     elif i == 1 and data[:2] == 'B\0':
+      # Based on ``Connection Setup'' in
+      # https://www.x.org/releases/X11R7.5/doc/x11proto/proto.pdf
       if s < 6 and 'B\0\0\x0b\0\0'.startswith(data):
         return ''
       elif s >= 6 and data[:6] == 'B\0\0\x0b\0\0':

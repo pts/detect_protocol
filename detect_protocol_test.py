@@ -87,7 +87,11 @@ RTMP_DATAS = (
     '\3ABCD\0\0\0\0',
     '\3EFGH\x80\0\3\2',
 )
-
+MEMCACHED_CLIENT_DATAS = (
+    'add x',
+    'get\tx',
+    'stats\r\n',
+)
 
 def detect_tcp_protocol(data):
   assert len(data) <= detect_protocol.PEEK_SIZE
@@ -196,10 +200,14 @@ def run_tests():
     for i in xrange(len(data)):
       assert detect_tcp_protocol(data[:i]) == ''
     assert detect_tcp_protocol(data) == 'nanomsg-sp'
-  for data in RTMP_DATAS:
-    for i in xrange(len(data)):
+  for data in MEMCACHED_CLIENT_DATAS:
+    j = 0
+    while not data[j].isspace():
+      j += 1
+    for i in xrange(j):
       assert detect_tcp_protocol(data[:i]) == ''
-    assert detect_tcp_protocol(data) == 'rtmp'
+    assert detect_tcp_protocol(data[:j + 1]) == 'memcached-client'
+    assert detect_tcp_protocol(data) == 'memcached-client'
 
 
 if __name__ == '__main__':
