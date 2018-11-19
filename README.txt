@@ -33,6 +33,8 @@ expects the server to send some bytes first:
 * SMTP
 * FTP
 * VNC
+* MySQL (see details on
+  https://dev.mysql.com/doc/internals/en/connection-phase-packets.html#packet-Protocol::Handshake)
 
 The clients of these protocols can't be detected reliably:
 

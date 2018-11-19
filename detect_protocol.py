@@ -1,8 +1,6 @@
 #! /usr/bin/python
 # by pts@fazekas.hu at Sun Oct 21 09:16:49 CEST 2018
 #
-# TODO(pts): Add MySQL / MariaDB.
-#
 
 import struct
 
