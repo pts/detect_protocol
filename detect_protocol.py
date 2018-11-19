@@ -171,87 +171,6 @@ def detect_tcp_protocol(data):
     if s < min(64, vf_size + 11):  # Keep small buffer (64 bytes).
       return ''
     return ('ssl23-client', 'ssl2-client')[data[3] == '\0']
-  elif c in 'abcdefghijklmnopqrstuvwxyz':  # 'memcached-client' or 'x11-client'.
-    i = 1
-    while i < s and i <= 16 and data[i] in 'abcdefghijklmnopqrstuvwxyz':
-      i += 1
-    if i == s:  # Whitespace is needed for 'memcached-client'.
-      return ''
-    # 'x11-client' LSB-first.
-    #
-    # Based on ``Connection Setup'' in
-    # https://www.x.org/releases/X11R7.5/doc/x11proto/proto.pdf
-    if i == 1 and c == 'l' and 'l\0\x0b\0\0\0'.startswith(buffer(data, 0, 6)):
-      if s < 6:
-        return ''
-      else:
-        return 'x11-client'
-    # 'memcached-client' based on
-    # https://github.com/memcached/memcached/blob/master/doc/protocol.txt
-    if not data[i].isspace():
-      return 'unknown'
-    # Known commands: set add replace append prepend cas get and gets delete
-    # incr decr touch gat gats slabs lru lru_crawler stats flush_all
-    # cache_memlimit version quit misbehave
-    return 'memcached-client'
-  elif c in 'ABCDEFGHIJKLMNOPQRSTUVWXYZ':  # 'http-client' or 'http-proxy-client' or 'ssh2' or 'x11-client' MSB-first or 'adb-client'.
-    if c == 'C':  # Starts with 'CNXN'.
-      protocol = _detect_adb_cnxn(data, 0)
-      if protocol != 'unknown':
-        return protocol
-    i = 1
-    while i < s and i <= 16 and data[i] in 'ABCDEFGHIJKLMNOPQRSTUVWXYZ':
-      i += 1
-    if i == s:  # A ' ' or '-' is needed.
-      return ''
-    elif i == 1 and data[:2] == 'B\0':
-      # Based on ``Connection Setup'' in
-      # https://www.x.org/releases/X11R7.5/doc/x11proto/proto.pdf
-      if s < 6 and 'B\0\0\x0b\0\0'.startswith(data):
-        return ''
-      elif s >= 6 and data[:6] == 'B\0\0\x0b\0\0':
-        return 'x11-client'
-      else:
-        return 'unknown'
-    elif i == 3 and data[:4] == 'SSH-':
-      if s < 9:
-        if 'SSH-2.0-'.startswith(data):
-          return ''
-        return 'unknown'
-      if data[:8] == 'SSH-2.0-':
-        return 'ssh2'  # Both SSH client and server send this prefix.
-      return 'unknown'
-    elif i < 3 or i > 16:  # HTTP method name too long (arbitrary limit).
-      return 'unknown'
-    elif not data[i].isspace():
-      return 'unknown'
-    else:
-      # TODO(pts): Should we be more strict with HTTP method names (i.e.
-      #            have a whitelist)?
-      i += 1
-      while i < s and data[i].isspace():
-        i += 1
-      if i == s:
-        return ''
-      elif data[i] == '/':
-        # Based on
-        # https://wiki.theory.org/index.php/BitTorrentSpecification#Tracker_HTTP.2FHTTPS_Protocol
-        # : requests from the bittorrent client to the bittorrent tracker
-        # can use a binary UDP protocol or HTTP(S). We report the latter as
-        # 'http-client' here, since there is no foolproof way to distinguish it
-        # from a HTTP GET request. We could detect the presence of info_hash=,
-        # peer_id= etc. HTTP URL parameters, but it's tricky to do in 64 bytes.
-        #
-        # In addition to HTTP/0.9, HTTP/1.0 and HTTP/1.1, we also detect
-        # unencrypted HTTP/2 (both `Upgrade: 2hc' and `Pri *') here as
-        # 'http-client'. Based on
-        # https://httpwg.org/specs/rfc7540.html#starting .
-        #
-        # Also RTMPT is detected as 'http-client'. Based on
-        # https://www.joachim-bauch.de/tutorials/red5/rtmpt-protocol/ .
-        return 'http-client'
-      else:
-        return 'http-proxy-client'
   elif c == '\x03':  # 'rdp-client' or 'rtmp'.
     # No real conflict, because:
     #
@@ -419,5 +338,86 @@ def detect_tcp_protocol(data):
       return ''
     else:
       return 'zmtp'
+  elif c in 'abcdefghijklmnopqrstuvwxyz':  # 'memcached-client' or 'x11-client'.
+    i = 1
+    while i < s and i <= 16 and data[i] in 'abcdefghijklmnopqrstuvwxyz':
+      i += 1
+    if i == s:  # Whitespace is needed for 'memcached-client'.
+      return ''
+    # 'x11-client' LSB-first.
+    #
+    # Based on ``Connection Setup'' in
+    # https://www.x.org/releases/X11R7.5/doc/x11proto/proto.pdf
+    if i == 1 and c == 'l' and 'l\0\x0b\0\0\0'.startswith(buffer(data, 0, 6)):
+      if s < 6:
+        return ''
+      else:
+        return 'x11-client'
+    # 'memcached-client' based on
+    # https://github.com/memcached/memcached/blob/master/doc/protocol.txt
+    if not data[i].isspace():
+      return 'unknown'
+    # Known commands: set add replace append prepend cas get and gets delete
+    # incr decr touch gat gats slabs lru lru_crawler stats flush_all
+    # cache_memlimit version quit misbehave
+    return 'memcached-client'
+  elif c in 'ABCDEFGHIJKLMNOPQRSTUVWXYZ':  # 'http-client' or 'http-proxy-client' or 'ssh2' or 'x11-client' MSB-first or 'adb-client'.
+    if c == 'C':  # Starts with 'CNXN'.
+      protocol = _detect_adb_cnxn(data, 0)
+      if protocol != 'unknown':
+        return protocol
+    i = 1
+    while i < s and i <= 16 and data[i] in 'ABCDEFGHIJKLMNOPQRSTUVWXYZ':
+      i += 1
+    if i == s:  # A ' ' or '-' is needed.
+      return ''
+    elif i == 1 and data[:2] == 'B\0':
+      # Based on ``Connection Setup'' in
+      # https://www.x.org/releases/X11R7.5/doc/x11proto/proto.pdf
+      if s < 6 and 'B\0\0\x0b\0\0'.startswith(data):
+        return ''
+      elif s >= 6 and data[:6] == 'B\0\0\x0b\0\0':
+        return 'x11-client'
+      else:
+        return 'unknown'
+    elif i == 3 and data[:4] == 'SSH-':
+      if s < 9:
+        if 'SSH-2.0-'.startswith(data):
+          return ''
+        return 'unknown'
+      if data[:8] == 'SSH-2.0-':
+        return 'ssh2'  # Both SSH client and server send this prefix.
+      return 'unknown'
+    elif i < 3 or i > 16:  # HTTP method name too long (arbitrary limit).
+      return 'unknown'
+    elif not data[i].isspace():
+      return 'unknown'
+    else:
+      # TODO(pts): Should we be more strict with HTTP method names (i.e.
+      #            have a whitelist)?
+      i += 1
+      while i < s and data[i].isspace():
+        i += 1
+      if i == s:
+        return ''
+      elif data[i] == '/':
+        # Based on
+        # https://wiki.theory.org/index.php/BitTorrentSpecification#Tracker_HTTP.2FHTTPS_Protocol
+        # : requests from the bittorrent client to the bittorrent tracker
+        # can use a binary UDP protocol or HTTP(S). We report the latter as
+        # 'http-client' here, since there is no foolproof way to distinguish it
+        # from a HTTP GET request. We could detect the presence of info_hash=,
+        # peer_id= etc. HTTP URL parameters, but it's tricky to do in 64 bytes.
+        #
+        # In addition to HTTP/0.9, HTTP/1.0 and HTTP/1.1, we also detect
+        # unencrypted HTTP/2 (both `Upgrade: 2hc' and `Pri *') here as
+        # 'http-client'. Based on
+        # https://httpwg.org/specs/rfc7540.html#starting .
+        #
+        # Also RTMPT is detected as 'http-client'. Based on
+        # https://www.joachim-bauch.de/tutorials/red5/rtmpt-protocol/ .
+        return 'http-client'
+      else:
+        return 'http-proxy-client'
   else:
     return 'unknown'
