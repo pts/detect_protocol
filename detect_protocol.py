@@ -225,6 +225,14 @@ def detect_tcp_protocol(data):
         # 'http-client' here, since there is no foolproof way to distinguish it
         # from a HTTP GET request. We could detect the presence of info_hash=,
         # peer_id= etc. HTTP URL parameters, but it's tricky to do in 64 bytes.
+        #
+        # In addition to HTTP/0.9, HTTP/1.0 and HTTP/1.1, we also detect
+        # unencrypted HTTP/2 (both `Upgrade: 2hc' and `Pri *') here as
+        # 'http-client'. Based on
+        # https://httpwg.org/specs/rfc7540.html#starting .
+        #
+        # Also RTMPT is detected as 'http-client'. Based on
+        # https://www.joachim-bauch.de/tutorials/red5/rtmpt-protocol/ .
         return 'http-client'
       else:
         return 'http-proxy-client'
