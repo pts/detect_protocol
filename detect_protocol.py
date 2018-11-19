@@ -1,7 +1,6 @@
 #! /usr/bin/python
 # by pts@fazekas.hu at Sun Oct 21 09:16:49 CEST 2018
 #
-# TODO(pts): Add rtmp.
 # TODO(pts): Add Redis.
 # TODO(pts): Add memcached.
 # TODO(pts): Add MySQL / MariaDB.
@@ -33,6 +32,7 @@ SUPPORTED_PROTOCOLS = (
     'bittorrent-peer',
     'zmtp',  # ZeroMQ.
     'nanomsg-sp',  # nanomsg scalability protocol over TCP.
+    'rtmp',
 )
 """Sequence of protocol return values of detect_protocol."""
 
@@ -236,7 +236,24 @@ def detect_tcp_protocol(data):
         return 'http-client'
       else:
         return 'http-proxy-client'
-  elif c == '\x03':  # 'rdp-client'.
+  elif c == '\x03':  # 'rdp-client' or 'rtmp'.
+    # No real conflict, because:
+    #
+    # * If data[5] == '\xe0', then it's 'rdp-client'.
+    # * If data[5] == '\0' or '\x80'. then it's 'rtmp'.
+    #
+    # Based on
+    # https://www.adobe.com/content/dam/acom/en/devnet/rtmp/pdf/rtmp_specification_1.0.pdf
+    #
+    # \x80 is in
+    # https://github.com/qwantix/php-rtmp-client/blob/bca91eab89f7762ffd41a7fa2de6d14dfd6bb984/RtmpClient.class.php#L393
+    if (s > 5 and ('\0\0\0\0'.startswith(buffer(data, 5, 4)) or
+                   '\x80\0\3\2'.startswith(buffer(data, 5, 4)))):
+      if s < 9:
+        return ''
+      else:
+        return 'rtmp'
+
     # Based on xrdp-0.9.3.1/libxrdp/xrdp_iso.c.
     if s < 6:
       return ''

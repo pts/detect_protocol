@@ -83,6 +83,11 @@ NANOMSG_SP_DATAS = (
     '\0SP\0\0\x11',
     '\0SP\0\1\xff',
 )
+RTMP_DATAS = (
+    '\3ABCD\0\0\0\0',
+    '\3EFGH\x80\0\3\2',
+)
+
 
 def detect_tcp_protocol(data):
   assert len(data) <= detect_protocol.PEEK_SIZE
@@ -191,6 +196,10 @@ def run_tests():
     for i in xrange(len(data)):
       assert detect_tcp_protocol(data[:i]) == ''
     assert detect_tcp_protocol(data) == 'nanomsg-sp'
+  for data in RTMP_DATAS:
+    for i in xrange(len(data)):
+      assert detect_tcp_protocol(data[:i]) == ''
+    assert detect_tcp_protocol(data) == 'rtmp'
 
 
 if __name__ == '__main__':
